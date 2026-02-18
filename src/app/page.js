@@ -153,7 +153,7 @@ export default function Home() {
   <div className="relative">
     <div className="rounded-3xl overflow-hidden shadow-2xl">
       <img
-        src="https://images.unsplash.com/photo-1716504628105-bd76d91e85f2?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c2FyZWUlMjBwaG90b3Nob290fGVufDB8fDB8fHww"
+        src="https://images.unsplash.com/photo-1610030469978-6bb537f3b982?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHNhcmVlJTIwcGhvdG9zaG9vdHxlbnwwfHwwfHx8MA%3D%3D"
         className="w-full h-[450px] object-cover"
       />
     </div>
