@@ -6,9 +6,13 @@ import { useCart } from "@/context/CartContext";
 import { doc, getDoc } from "firebase/firestore";
 import ProductSkeleton from "@/components/ProductSkeleton";
 import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
 
 export default function ProductDetails() {
-  const { addToCart } = useCart();
+  const { addToCart, buyNow } = useCart();
+  const router = useRouter();
+
   const { id } = useParams();
 
   const [product, setProduct] = useState(null);
@@ -181,7 +185,11 @@ export default function ProductDetails() {
               Add to Cart
             </button>
 
-            <button className="flex-1 py-4 rounded-full text-white bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37]">
+            <button onClick={() => {
+                buyNow({ id, ...product });
+                router.push("/checkout")
+            }}
+             className="flex-1 py-4 rounded-full text-white bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37]">
               Buy Now
             </button>
           </div>
