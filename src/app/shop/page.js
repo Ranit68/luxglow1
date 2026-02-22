@@ -1,127 +1,277 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { useSearchParams, useRouter } from "next/navigation";
 
+import ProductCardSkeleton from "@/components/ProductCardSkeleton";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+} from "firebase/firestore";
 
 export default function ShopPage() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // 🔥 get category from URL
+  const PRODUCTS_PER_PAGE = 12;
+
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const categoryParam = searchParams.get("category");
 
-  // 🔥 fetch products + filter
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "products"));
-        let data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+  const pageParam =
+    Number(searchParams.get("page")) || 1;
 
-        // ⭐ FILTER BY CATEGORY FROM HOME PAGE
-        if (categoryParam) {
-          data = data.filter(p => p.category === categoryParam);
-        }
+  /* ================= STATES ================= */
 
-        setProducts(data);
-        setLoading(false);
-      } catch (err) {
-        console.log("Error fetching products:", err);
-        setLoading(false);
-      }
-    };
+  const [products,setProducts]=useState([]);
+  const [visibleProducts,setVisibleProducts]=useState([]);
+  const [loading,setLoading]=useState(true);
 
+  const [search,setSearch]=useState("");
+  const [category,setCategory]=useState("All");
+  const [sort,setSort]=useState("latest");
+
+  const [hasNextPage,setHasNextPage]=useState(false);
+
+  /* ================= FETCH ================= */
+
+  const fetchProducts = async () => {
+
+    setLoading(true);
+
+    const snapshot = await getDocs(
+      query(collection(db,"products"))
+    );
+
+    let data = snapshot.docs.map(doc=>({
+      id:doc.id,
+      ...doc.data()
+    }));
+
+    /* CATEGORY FILTER */
+    if(category !== "All"){
+      data = data.filter(
+        p=>p.category === category
+      );
+    }
+
+    /* SORTING */
+    if(sort==="latest"){
+      data.sort(
+        (a,b)=>
+          b.createdAt?.seconds -
+          a.createdAt?.seconds
+      );
+    }
+
+    if(sort==="low"){
+      data.sort((a,b)=>a.price-b.price);
+    }
+
+    if(sort==="high"){
+      data.sort((a,b)=>b.price-a.price);
+    }
+
+    if(sort==="name"){
+      data.sort((a,b)=>
+        a.name.localeCompare(b.name)
+      );
+    }
+
+    /* SEARCH */
+    if(search){
+      data=data.filter(p=>
+        p.name.toLowerCase()
+        .includes(search.toLowerCase())
+      );
+    }
+
+    /* PAGINATION */
+    const start =
+      (pageParam-1)*PRODUCTS_PER_PAGE;
+
+    const paginated =
+      data.slice(start,start+PRODUCTS_PER_PAGE);
+
+    setProducts(data);
+    setVisibleProducts(paginated);
+
+    setHasNextPage(
+      start+PRODUCTS_PER_PAGE<data.length
+    );
+
+    setLoading(false);
+  };
+
+  useEffect(()=>{
     fetchProducts();
-  }, [categoryParam]);
+  },[category,sort,pageParam,search]);
+
+  /* ================= PAGE NAV ================= */
+
+  const goNext=()=>router.push(`/shop?page=${pageParam+1}`);
+  const goPrev=()=>router.push(`/shop?page=${pageParam-1}`);
+
+  /* ================= UI ================= */
 
   return (
-    <main className="pt-28 bg-[#FAF6F0] min-h-screen px-6">
-      <div className="max-w-7xl mx-auto py-16">
+    <main className="pt-28 bg-[#FAF6F0] min-h-screen">
 
-        {/* PAGE TITLE */}
-        <h1 className="text-4xl font-[var(--font-heading)] text-[#5A0F1C] mb-3">
-          Shop Sarees
-        </h1>
+      <div className="max-w-7xl mx-auto px-4 py-14">
 
-        {/* SHOW FILTER TEXT */}
-        {categoryParam && (
-          <p className="text-gray-500 mb-10">
-            Showing category: <span className="font-semibold">{categoryParam}</span>
-          </p>
-        )}
+        {/* HEADER */}
+        <div className="flex flex-col lg:flex-row
+        justify-between gap-6 mb-10">
+
+          <h1 className="text-4xl text-[#5A0F1C]">
+            Shop Sarees
+          </h1>
+
+          {/* FILTER BAR */}
+          <div className="flex flex-wrap gap-4">
+
+            {/* SEARCH */}
+            <input
+              placeholder="Search..."
+              value={search}
+              onChange={(e)=>setSearch(e.target.value)}
+              className="px-5 py-3 rounded-full
+              border shadow-sm"
+            />
+
+            {/* CATEGORY */}
+            <select
+              value={category}
+              onChange={(e)=>setCategory(e.target.value)}
+              className="px-4 py-3 rounded-full border"
+            >
+              <option>All</option>
+              <option>Silk</option>
+              <option>Cotton</option>
+              <option>Wedding</option>
+              <option>Festive</option>
+              <option>Daily Wear</option>
+              <option>Party Wear</option>
+            </select>
+
+            {/* SORT */}
+            <select
+              value={sort}
+              onChange={(e)=>setSort(e.target.value)}
+              className="px-4 py-3 rounded-full border"
+            >
+              <option value="latest">
+                Latest
+              </option>
+              <option value="low">
+                Price Low → High
+              </option>
+              <option value="high">
+                Price High → Low
+              </option>
+              <option value="name">
+                Name A–Z
+              </option>
+            </select>
+
+          </div>
+        </div>
 
         {/* LOADING */}
         {loading && (
-          <div className="text-center py-32 text-lg">
-            Loading products...
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(8)].map((_,i)=>
+              <ProductCardSkeleton key={i}/>
+            )}
           </div>
         )}
 
-        {/* EMPTY STATE */}
-        {!loading && products.length === 0 && (
-          <div className="text-center py-32">
-            <h2 className="text-2xl mb-3">No products found 😢</h2>
-            <Link href="/shop" className="text-[#5A0F1C] underline">
-              View all products
-            </Link>
-          </div>
-        )}
+        {/* PRODUCTS */}
+        {!loading && (
+          <div className="grid grid-cols-2
+          md:grid-cols-3 lg:grid-cols-4 gap-6">
 
-        {/* PRODUCTS GRID */}
-        {!loading && products.length > 0 && (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            {visibleProducts.map(product=>(
+              <Link key={product.id}
+              href={`/shop/${product.id}`}>
 
-            {products.map(product => (
-              <div
-                key={product.id}
-                className="bg-white rounded-3xl shadow-md overflow-hidden hover:shadow-xl transition"
-              >
+                <div className="group bg-white
+                rounded-3xl shadow-md
+                hover:shadow-xl overflow-hidden">
 
-                {/* IMAGE */}
-                <div className="h-72 bg-gray-100 overflow-hidden">
-                  <img
-                    src={product.imageUrl}
-                    className="h-full w-full object-cover object-top hover:scale-105 transition duration-300"
-                  />
-                </div>
+                  <div className="relative h-64">
+                    <Image
+                      src={product.imageUrl}
+                      alt={product.name}
+                      fill
+                      className="object-cover
+                      group-hover:scale-110
+                      transition duration-500"
+                    />
+                  </div>
 
-                {/* DETAILS */}
-                <div className="p-5">
-                  <h2 className="font-semibold text-lg line-clamp-1">
-                    {product.name}
-                  </h2>
+                  <div className="p-5">
 
-                  <p className="text-gray-500 mt-1 text-sm">
-                    {product.category}
-                  </p>
+                    <h2 className="font-semibold line-clamp-1">
+                      {product.name}
+                    </h2>
 
-                  <div className="flex justify-between items-center mt-4">
-                    <p className="text-xl font-bold text-[#5A0F1C]">
-                      ₹{product.price}
+                    <p className="text-sm text-gray-500">
+                      {product.category}
                     </p>
 
-                    <Link href={`/shop/${product.id}`}>
-                      <button className="px-4 py-2 rounded-full text-white text-sm
-                      bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37] hover:scale-105 transition">
+                    <div className="flex justify-between mt-4">
+
+                      <p className="font-bold text-[#5A0F1C]">
+                        ₹{product.price}
+                      </p>
+
+                      <span className="px-4 py-1 rounded-full
+                      text-white text-sm
+                      bg-gradient-to-r
+                      from-[#5A0F1C]
+                      to-[#D4AF37]">
                         View
-                      </button>
-                    </Link>
+                      </span>
+
+                    </div>
+
                   </div>
                 </div>
-
-              </div>
+              </Link>
             ))}
-
+          </div>
+        )}
+        {/* PAGINATION */}
+        {!loading && (
+          <div className="flex justify-center gap-4 mt-14">
+            <button
+              disabled={pageParam===1}
+              onClick={goPrev}
+              className="px-6 py-3 border rounded-full">
+              Previous
+            </button>
+            <span className="px-4 py-3">
+              Page {pageParam}
+            </span>
+            <button
+              disabled={!hasNextPage}
+              onClick={goNext}
+              className="px-6 py-3 rounded-full text-white
+              bg-gradient-to-r
+              from-[#5A0F1C]
+              to-[#D4AF37]">
+              Next
+            </button>
           </div>
         )}
 
       </div>
+
     </main>
   );
 }

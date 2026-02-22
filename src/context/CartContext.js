@@ -44,6 +44,10 @@ export const CartProvider = ({ children }) => {
         .filter((item) => item.qty > 0)
     );
   };
+  const buyNow = (product) => {
+    setCart([{ ...product, qty: 1 }]); 
+  };
+
 
   const removeItem = (id) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
@@ -51,7 +55,7 @@ export const CartProvider = ({ children }) => {
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, increaseQty, decreaseQty, removeItem }}
+      value={{ cart, addToCart, buyNow, increaseQty, decreaseQty, removeItem }}
     >
       {children}
     </CartContext.Provider>

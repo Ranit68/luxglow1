@@ -9,7 +9,7 @@ export async function POST(req) {
       {
         method: "GET",
         headers: {
-          Authorization: process.env.DELHIVERY_API_TOKEN,
+          Authorization: `Token ${process.env.DELHIVERY_TOKEN}`,
         },
       }
     );

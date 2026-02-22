@@ -9,11 +9,53 @@
   --font-heading: var(--font-playfair);
   --font-body: var(--font-poppins);
 }
+.footer-link {
+  @apply block hover:text-[#D4AF37] transition duration-200;
+}
 
+.social-icon {
+  @apply w-10 h-10 rounded-full bg-[#1A1A1A]
+  flex items-center justify-center
+  hover:bg-[#D4AF37] hover:text-black
+  transition;
+}
 /* Apply default font */
 body {
   font-family: var(--font-body);
   background: var(--color-cream);
+}
+.input-modern {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-xl outline-none
+  focus:ring-2 focus:ring-[#5A0F1C] focus:border-[#5A0F1C]
+  transition bg-white text-sm;
+}
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.35s ease;
+}
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.25s ease;
 }
 @keyframes fadeIn {
   from { opacity: 0 }
@@ -30,3 +72,4 @@ body {
     opacity: 1;
   }
 }
+

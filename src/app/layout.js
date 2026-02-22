@@ -2,6 +2,7 @@ import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
+import LayoutWrapper from "@/components/LayoutWrapper";
 
 import "./globals.css";
 
@@ -33,8 +34,9 @@ export default function RootLayout({ children }) {
      <body className={`${playfair.variable} ${poppins.variable}`}>
   <AuthProvider>
   <CartProvider>
-    <Navbar />
+    <LayoutWrapper>
     {children}
+    </LayoutWrapper>
     <Footer />
   </CartProvider>
   </AuthProvider>

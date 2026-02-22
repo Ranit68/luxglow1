@@ -18,11 +18,10 @@ export default function CheckoutPage() {
   const { cart } = useCart();
   const { user } = useAuth();
   const router = useRouter();
-  const [paymentMsg, setPaymentMsg] = useState("");
-
 
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -34,7 +33,10 @@ export default function CheckoutPage() {
     district: "",
   });
 
-  const total = cart?.reduce((acc, item) => acc + item.price * item.qty, 0) || 0;
+  const total =
+    cart?.reduce((acc, item) => acc + item.price * item.qty, 0) || 0;
+
+  /* ================= FETCH ADDRESSES ================= */
 
   useEffect(() => {
     if (!user) return;
@@ -55,92 +57,85 @@ export default function CheckoutPage() {
     fetchAddresses();
   }, [user]);
 
+  /* ================= PINCODE AUTO FILL ================= */
+
   const fetchLocation = async (pin) => {
-    if(pin.length !== 6) return;
+    if (pin.length !== 6) return;
 
     try {
-        const res = await fetch("/api/check-delivery",{
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ pincode: pin }),
-        });
+      const res = await fetch("/api/check-delivery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pincode: pin }),
+      });
 
-        const data = await res.json();
+      const data = await res.json();
+      if (!data.serviceable) return;
 
-        if(!data.serviceable) return;
-
-        if(!data.serviceable) return;
-
-        setForm((prev) => ({
-            ...prev,
-            city: data.city,
-            district: data.district,
-        }));
-    } catch (err){
-        console.log("Pincode fetch failed")
+      setForm((prev) => ({
+        ...prev,
+        city: data.city,
+        district: data.district,
+      }));
+    } catch {
+      console.log("Pincode fetch failed");
     }
   };
 
+  /* ================= SAVE ADDRESS ================= */
 
- const saveAddress = async () => {
+  const saveAddress = async () => {
+    if (!form.name.trim()) return alert("Enter full name");
+    if (!/^[0-9]{10}$/.test(form.phone))
+      return alert("Enter valid 10 digit phone number");
+    if (!form.line1.trim()) return alert("Enter Address Line 1");
+    if (!/^[0-9]{6}$/.test(form.pincode))
+      return alert("Enter valid 6 digit pincode");
+    if (!form.city) return alert("Enter valid pincode");
+    if (addresses.length >= 3)
+      return alert("Maximum 3 addresses allowed");
 
-  if (!form.name.trim())
-    return alert("Enter full name");
+    try {
+      const docRef = await addDoc(
+        collection(db, "users", user.uid, "addresses"),
+        form
+      );
 
-  if (!/^[0-9]{10}$/.test(form.phone))
-    return alert("Enter valid 10 digit phone number");
+      setAddresses([...addresses, { id: docRef.id, ...form }]);
 
-  if (!form.line1.trim())
-    return alert("Enter Address Line 1");
+      setForm({
+        name: "",
+        phone: "",
+        line1: "",
+        line2: "",
+        pincode: "",
+        city: "",
+        district: "",
+      });
 
-  if (!/^[0-9]{6}$/.test(form.pincode))
-    return alert("Enter valid 6 digit pincode");
+      alert("Address saved successfully ✅");
+    } catch {
+      alert("Failed to save address");
+    }
+  };
 
-  if (!form.city)
-    return alert("Enter pincode to autofill city");
-
-  if (addresses.length >= 3)
-    return alert("Maximum 3 addresses allowed");
-
-  try {
-    const docRef = await addDoc(
-      collection(db, "users", user.uid, "addresses"),
-      form
-    );
-
-    setAddresses([...addresses, { id: docRef.id, ...form }]);
-
-    setForm({
-      name: "",
-      phone: "",
-      line1: "",
-      line2: "",
-      pincode: "",
-      city: "",
-      district: "",
-    });
-
-    alert("Address saved successfully ✅");
-
-  } catch (err) {
-    alert("Failed to save address");
-  }
-};
-
+  /* ================= DELETE ADDRESS ================= */
 
   const deleteAddress = async (id) => {
     await deleteDoc(doc(db, "users", user.uid, "addresses", id));
     setAddresses(addresses.filter((a) => a.id !== id));
   };
 
+  /* ================= PLACE ORDER ================= */
+
   const placeOrder = async () => {
     if (!selectedAddress) return alert("Select address");
 
+    setLoading(true);
+
     await addDoc(collection(db, "orders"), {
-  userId: user.uid,
-  userEmail: user.email || "",
+      userId: user.uid,
+      userEmail: user.email || "",
       address: selectedAddress,
       items: cart,
       total,
@@ -148,174 +143,201 @@ export default function CheckoutPage() {
       createdAt: Timestamp.now(),
     });
 
-    alert("Order placed 🎉");
     localStorage.removeItem("cart");
     router.push("/");
-    window.location.reload();
+    setLoading(false);
   };
 
-if (!cart) {
-  return (
-    <main className="pt-28 min-h-screen flex items-center justify-center">
-      <p className="text-xl">Loading checkout...</p>
-    </main>
-  );
-}
+  /* ================= EMPTY CART ================= */
 
-if (cart.length === 0) {
-  return (
-    <main className="pt-28 min-h-screen flex flex-col items-center justify-center">
-      <h1 className="text-3xl mb-4">Your cart is empty 🛒</h1>
-      <button
-        onClick={() => router.push("/shop")}
-        className="text-[#5A0F1C] underline"
-      >
-        Continue Shopping
-      </button>
-    </main>
-  );
-}
+  if (!cart || cart.length === 0) {
+    return (
+      <main className="pt-28 min-h-screen flex flex-col items-center justify-center">
+        <h1 className="text-3xl mb-4">Your cart is empty 🛒</h1>
+        <button
+          onClick={() => router.push("/shop")}
+          className="text-[#5A0F1C] underline"
+        >
+          Continue Shopping
+        </button>
+      </main>
+    );
+  }
 
+  /* ================= MAIN UI ================= */
 
   return (
-    <main className="pt-28 bg-[#FAF6F0] min-h-screen px-6">
-      <div className="max-w-6xl mx-auto py-16 grid md:grid-cols-2 gap-12">
+    <main className="pt-24 bg-gradient-to-b from-[#F8F6F3] to-white min-h-screen px-4 md:px-8">
+      <div className="max-w-7xl mx-auto py-12 grid lg:grid-cols-3 gap-10">
 
-        <div>
-          <h1 className="text-3xl text-[#5A0F1C] mb-6">Delivery Address</h1>
+        {/* LEFT SECTION */}
+        <div className="lg:col-span-2 space-y-10">
 
-          {addresses.map((addr) => {
-  const isSelected = selectedAddress?.id === addr.id;
+          <h1 className="text-3xl md:text-4xl font-bold text-[#3E0E18]">
+            Secure Checkout
+          </h1>
 
-  return (
-    <div
-      key={addr.id}
-      onClick={() => setSelectedAddress(addr)}
-      className={`
-        cursor-pointer p-5 mb-4 rounded-2xl shadow 
-        flex justify-between items-start transition
-        ${isSelected
-          ? "bg-[#5A0F1C]/5 border-2 border-[#5A0F1C]"
-          : "bg-white border hover:border-[#5A0F1C]/40"}
-      `}
-    >
-      <div className="flex gap-4">
+          <div className="bg-white rounded-3xl p-8 shadow-lg border">
 
-        <div className={`
-          mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center
-          ${isSelected ? "border-[#5A0F1C]" : "border-gray-400"}
-        `}>
-          {isSelected && (
-            <div className="w-2.5 h-2.5 bg-[#5A0F1C] rounded-full"></div>
-          )}
-        </div>
+            <h2 className="text-xl font-semibold mb-6 text-[#5A0F1C]">
+              Delivery Address
+            </h2>
 
-        <div>
-          <p className="font-semibold">{addr.name}</p>
-          <p className="text-gray-600 text-sm">
-            {addr.line1}, {addr.line2}
-          </p>
-          <p className="text-gray-600 text-sm">
-            {addr.city}, {addr.district} - {addr.pincode}
-          </p>
+            {/* SAVED ADDRESSES */}
+            <div className="space-y-4">
+              {addresses.map((addr) => {
+                const isSelected = selectedAddress?.id === addr.id;
 
-          {isSelected && (
-            <span className="text-xs text-[#5A0F1C] font-semibold">
-              ✓ Selected Address
-            </span>
-          )}
-        </div>
-      </div>
+                return (
+                  <div
+                    key={addr.id}
+                    onClick={() => setSelectedAddress(addr)}
+                    className={`p-5 rounded-2xl border cursor-pointer transition
+                    ${isSelected
+                        ? "border-[#5A0F1C] bg-[#5A0F1C]/5 shadow-md"
+                        : "border-gray-200 hover:border-[#5A0F1C]/40"
+                      }`}
+                  >
+                    <div className="flex justify-between">
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteAddress(addr.id);
-        }}
-        className="text-red-500 hover:scale-110"
-      >
-        🗑
-      </button>
-    </div>
-  );
-})}
+                      <div>
+                        <p className="font-semibold">{addr.name}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {addr.line1}, {addr.line2}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {addr.city}, {addr.district} - {addr.pincode}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          📞 {addr.phone}
+                        </p>
+                      </div>
 
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteAddress(addr.id);
+                        }}
+                        className="text-red-500"
+                      >
+                        🗑
+                      </button>
 
-          <h2 className="mt-8 mb-3 font-semibold">Add New Address</h2>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-          <div className="space-y-3">
-            <input placeholder="Name"
-              className="input"
-              onChange={(e)=>setForm({...form,name:e.target.value})}/>
+            {/* ADD NEW ADDRESS */}
+            <div className="mt-10 border-t pt-8">
+              <h3 className="font-semibold text-lg mb-4">
+                Add New Address
+              </h3>
 
-            <input placeholder="Phone"
-              className="input"
-              onChange={(e)=>setForm({...form,phone:e.target.value})}/>
+              <div className="grid md:grid-cols-2 gap-4">
 
-            <input placeholder="Address Line 1"
-              className="input"
-              onChange={(e)=>setForm({...form,line1:e.target.value})}/>
+                <input
+                  placeholder="Full Name"
+                  className="input-modern"
+                  value={form.name}
+                  onChange={(e)=>setForm({...form,name:e.target.value})}
+                />
 
-            <input placeholder="Address Line 2"
-              className="input"
-              onChange={(e)=>setForm({...form,line2:e.target.value})}/>
+                <input
+                  placeholder="Phone"
+                  className="input-modern"
+                  value={form.phone}
+                  onChange={(e)=>setForm({...form,phone:e.target.value})}
+                />
 
-            <input placeholder="Pincode"
-              className="input"
-              onChange={(e)=>{
-                setForm({...form,pincode:e.target.value});
-                fetchLocation(e.target.value);
-              }}/>
+                <input
+                  placeholder="Address Line 1"
+                  className="input-modern md:col-span-2"
+                  value={form.line1}
+                  onChange={(e)=>setForm({...form,line1:e.target.value})}
+                />
 
-            <input value={form.city} placeholder="City" className="input"/>
-            <input value={form.district} placeholder="District" className="input"/>
+                <input
+                  placeholder="Address Line 2"
+                  className="input-modern md:col-span-2"
+                  value={form.line2}
+                  onChange={(e)=>setForm({...form,line2:e.target.value})}
+                />
 
-            <button onClick={saveAddress}
-              className="bg-[#5A0F1C] text-white px-6 py-3 rounded-xl">
-              Save Address
-            </button>
+                <input
+                  placeholder="Pincode"
+                  className="input-modern"
+                  value={form.pincode}
+                  onChange={(e)=>{
+                    setForm({...form,pincode:e.target.value});
+                    fetchLocation(e.target.value);
+                  }}
+                />
+
+                <input
+                  value={form.city}
+                  disabled
+                  placeholder="City"
+                  className="input-modern bg-gray-100"
+                />
+
+                <input
+                  value={form.district}
+                  disabled
+                  placeholder="District"
+                  className="input-modern"
+                />
+
+              </div>
+
+              <button
+                onClick={saveAddress}
+                className="mt-6 bg-[#5A0F1C] text-white px-8 py-3 rounded-full hover:opacity-90 transition"
+              >
+                Save Address
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-3xl shadow">
-          <h2 className="text-2xl font-semibold mb-6">Order Summary</h2>
+        {/* RIGHT SECTION */}
+        <div className="bg-white p-8 rounded-3xl shadow-xl border h-fit lg:sticky lg:top-28">
 
-          {cart.map((item) => (
-            <div key={item.id} className="flex justify-between mb-3">
-              <p>{item.name} x {item.qty}</p>
-              <p>₹{item.price * item.qty}</p>
-            </div>
-          ))}
+          <h2 className="text-2xl font-semibold mb-6">
+            Order Summary
+          </h2>
 
-          <hr className="my-6" />
+          <div className="space-y-3">
+            {cart.map((item) => (
+              <div key={item.id} className="flex justify-between text-sm">
+                <span>{item.name} x {item.qty}</span>
+                <span>₹{item.price * item.qty}</span>
+              </div>
+            ))}
+          </div>
 
-          <h3 className="text-2xl font-bold text-[#5A0F1C]">
-            Total ₹{total}
-          </h3>
+          <div className="border-t my-6"></div>
+
+          <div className="flex justify-between text-lg font-medium">
+            <span>Total</span>
+            <span className="text-[#5A0F1C] font-bold">
+              ₹{total}
+            </span>
+          </div>
 
           <button
-  onClick={() => setPaymentMsg("Online payments coming soon 💳. Cash on Delivery is available for now.")}
-  className="w-full mt-6 py-4 rounded-full text-white
-  bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37]"
->
-  Pay Online (Coming Soon)
-</button>
+            onClick={placeOrder}
+            disabled={loading}
+            className="w-full mt-8 py-4 rounded-full bg-[#5A0F1C]
+            text-white font-semibold hover:opacity-90 transition shadow-lg"
+          >
+            {loading ? "Placing Order..." : "Place Order (Cash on Delivery)"}
+          </button>
 
-{paymentMsg && (
-  <p className="text-center text-sm text-gray-600 mt-3">
-    {paymentMsg}
-  </p>
-)}
-{/* COD BUTTON ⭐ IMPORTANT */}
-<button
-  onClick={placeOrder}
-  className="w-full mt-4 py-4 rounded-full 
-  border-2 border-[#5A0F1C] text-[#5A0F1C] font-semibold
-  hover:bg-[#5A0F1C] hover:text-white transition"
->
-  Place Order — Cash on Delivery
-</button>
-
+          <p className="text-xs text-gray-500 mt-6 text-center">
+            🔒 Secure Checkout | Safe & Encrypted
+          </p>
 
         </div>
 
