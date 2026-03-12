@@ -34,6 +34,7 @@ export default function ProductDetails() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
 
   const isInCart = cart?.some((item) => item.id === id);
 
@@ -57,6 +58,26 @@ export default function ProductDetails() {
     };
   }, []);
 
+  useEffect(() => {
+    const attachStream = async () => {
+      if (!cameraOpen || !cameraStream || !videoRef.current) {
+        return;
+      }
+
+      videoRef.current.srcObject = cameraStream;
+
+      try {
+        await videoRef.current.play();
+      } catch {
+        setCameraError(
+          "Camera opened, but the preview could not start automatically. Tap Open Camera again."
+        );
+      }
+    };
+
+    attachStream();
+  }, [cameraOpen, cameraStream]);
+
   if (!product) {
     return <ProductSkeleton />;
   }
@@ -68,6 +89,8 @@ export default function ProductDetails() {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+
+    setCameraStream(null);
 
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -108,12 +131,8 @@ export default function ProductDetails() {
       });
 
       streamRef.current = stream;
+      setCameraStream(stream);
       setCameraOpen(true);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
     } catch (error) {
       if (error?.name === "NotAllowedError") {
         setCameraError(
@@ -385,20 +404,46 @@ export default function ProductDetails() {
               <div className="space-y-4">
                 <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[1.75rem] bg-[#F6EEE7]">
                   {tryOnImage ? (
-                    <Image
-                      src={tryOnImage}
-                      alt="Your try-on preview"
-                      fill
-                      sizes="(min-width: 768px) 40vw, 100vw"
-                      className="object-cover"
-                    />
+                    <>
+                      <Image
+                        src={tryOnImage}
+                        alt="Your try-on preview"
+                        fill
+                        sizes="(min-width: 768px) 40vw, 100vw"
+                        className="object-cover"
+                      />
+                      <div className="pointer-events-none absolute inset-x-[16%] bottom-0 top-[34%] overflow-hidden rounded-t-[40%] opacity-60 mix-blend-multiply">
+                        <Image
+                          src={images[currentImg]}
+                          alt={`${product.name} overlay`}
+                          fill
+                          sizes="(min-width: 768px) 20vw, 80vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    </>
                   ) : cameraOpen ? (
-                    <video
-                      ref={videoRef}
-                      muted
-                      playsInline
-                      className="h-full w-full object-cover"
-                    />
+                    <>
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="pointer-events-none absolute inset-x-[16%] bottom-0 top-[34%] overflow-hidden rounded-t-[40%] opacity-55 mix-blend-multiply">
+                        <Image
+                          src={images[currentImg]}
+                          alt={`${product.name} live overlay`}
+                          fill
+                          sizes="(min-width: 768px) 20vw, 80vw"
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="pointer-events-none absolute inset-x-6 top-6 rounded-full bg-black/40 px-4 py-2 text-center text-xs font-medium tracking-[0.2em] text-white">
+                        LIVE PREVIEW + SAREE OVERLAY
+                      </div>
+                    </>
                   ) : (
                     <div className="max-w-xs text-center">
                       <p className="text-lg font-semibold text-[#5A0F1C]">
