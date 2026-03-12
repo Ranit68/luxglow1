@@ -12,7 +12,6 @@ import {
   collection,
   getDocs,
   query,
-  orderBy,
 } from "firebase/firestore";
 
 export default function ShopPage() {
@@ -27,7 +26,6 @@ export default function ShopPage() {
 
   /* ================= STATES ================= */
 
-  const [products,setProducts]=useState([]);
   const [visibleProducts,setVisibleProducts]=useState([]);
   const [loading,setLoading]=useState(true);
 
@@ -39,77 +37,63 @@ export default function ShopPage() {
 
   /* ================= FETCH ================= */
 
-  const fetchProducts = async () => {
+  useEffect(() => {
+    let ignore = false;
 
-    setLoading(true);
+    const fetchProducts = async () => {
+      setLoading(true);
 
-    const snapshot = await getDocs(
-      query(collection(db,"products"))
-    );
+      const snapshot = await getDocs(query(collection(db, "products")));
 
-    let data = snapshot.docs.map(doc=>({
-      id:doc.id,
-      ...doc.data()
-    }));
+      let data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-    /* CATEGORY FILTER */
-    if(category !== "All"){
-      data = data.filter(
-        p=>p.category === category
-      );
-    }
+      if (category !== "All") {
+        data = data.filter((product) => product.category === category);
+      }
 
-    /* SORTING */
-    if(sort==="latest"){
-      data.sort(
-        (a,b)=>
-          b.createdAt?.seconds -
-          a.createdAt?.seconds
-      );
-    }
+      if (sort === "latest") {
+        data.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
+      }
 
-    if(sort==="low"){
-      data.sort((a,b)=>a.price-b.price);
-    }
+      if (sort === "low") {
+        data.sort((a, b) => a.price - b.price);
+      }
 
-    if(sort==="high"){
-      data.sort((a,b)=>b.price-a.price);
-    }
+      if (sort === "high") {
+        data.sort((a, b) => b.price - a.price);
+      }
 
-    if(sort==="name"){
-      data.sort((a,b)=>
-        a.name.localeCompare(b.name)
-      );
-    }
+      if (sort === "name") {
+        data.sort((a, b) => a.name.localeCompare(b.name));
+      }
 
-    /* SEARCH */
-    if(search){
-      data=data.filter(p=>
-        p.name.toLowerCase()
-        .includes(search.toLowerCase())
-      );
-    }
+      if (search) {
+        data = data.filter((product) =>
+          product.name.toLowerCase().includes(search.toLowerCase())
+        );
+      }
 
-    /* PAGINATION */
-    const start =
-      (pageParam-1)*PRODUCTS_PER_PAGE;
+      const start = (pageParam - 1) * PRODUCTS_PER_PAGE;
+      const paginated = data.slice(start, start + PRODUCTS_PER_PAGE);
 
-    const paginated =
-      data.slice(start,start+PRODUCTS_PER_PAGE);
+      if (ignore) {
+        return;
+      }
 
-    setProducts(data);
-    setVisibleProducts(paginated);
+      setVisibleProducts(paginated);
+      setHasNextPage(start + PRODUCTS_PER_PAGE < data.length);
+      setLoading(false);
+    };
 
-    setHasNextPage(
-      start+PRODUCTS_PER_PAGE<data.length
-    );
-
-    setLoading(false);
-  };
-
-  useEffect(()=>{
     fetchProducts();
-  },[category,sort,pageParam,search]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [PRODUCTS_PER_PAGE, category, pageParam, search, sort]);
 
   /* ================= PAGE NAV ================= */
 

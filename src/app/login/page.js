@@ -27,7 +27,7 @@ const redirect = searchParams.get("redirect") || "/";
     if (user) {
       router.replace(redirect);
     }
-  }, [user, router]);
+  }, [redirect, router, user]);
 
   /* ✅ Login */
   const handleLogin = async (e) => {

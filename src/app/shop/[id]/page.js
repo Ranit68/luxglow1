@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -107,18 +108,24 @@ setTimeout(() => {
 
         <div className="space-y-5">
 
-          <div className="bg-white rounded-3xl shadow-xl p-6 aspect-square flex items-center justify-center">
-            <img
+          <div className="relative flex aspect-square items-center justify-center rounded-3xl bg-white p-6 shadow-xl">
+            <Image
               src={images[currentImg]}
+              alt={product.name}
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
               className="max-h-full object-contain"
             />
           </div>
 
           <div className="flex gap-3 overflow-x-auto">
             {images.map((img, i) => (
-              <img
+              <Image
                 key={i}
                 src={img}
+                alt={`${product.name} view ${i + 1}`}
+                width={80}
+                height={80}
                 onClick={() => setCurrentImg(i)}
                 className={`w-20 h-20 rounded-xl cursor-pointer border-2
                 ${i === currentImg

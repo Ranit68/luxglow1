@@ -87,11 +87,11 @@ export default function AboutPage() {
             <div className="w-20 h-1.5 bg-[#D4AF37] rounded-full" />
             
             <p className="text-gray-700 text-lg leading-relaxed">
-              Born from a passion for Indian craftsmanship, Lux&Glow was founded with a single goal: to make premium ethnic wear accessible to every modern woman. We believe that luxury shouldn't come with an unattainable price tag.
+              Born from a passion for Indian craftsmanship, Lux&Glow was founded with a single goal: to make premium ethnic wear accessible to every modern woman. We believe that luxury shouldn&apos;t come with an unattainable price tag.
             </p>
             
             <p className="text-gray-600 leading-relaxed">
-              Every piece in our collection is meticulously curated from artisans who respect the loom. We combine heritage techniques with modern silhouettes to ensure you look stunning, whether it's a wedding, a festival, or a casual brunch.
+              Every piece in our collection is meticulously curated from artisans who respect the loom. We combine heritage techniques with modern silhouettes to ensure you look stunning, whether it&apos;s a wedding, a festival, or a casual brunch.
             </p>
 
             <div className="pt-4 flex flex-wrap gap-4">
@@ -141,7 +141,7 @@ export default function AboutPage() {
           <h2 className="text-4xl font-[var(--font-heading)] text-[#5A0F1C] mb-4">
             Why Lux&Glow?
           </h2>
-          <p className="text-gray-600">We don't just sell sarees; we deliver an experience of elegance and trust.</p>
+          <p className="text-gray-600">We don&apos;t just sell sarees; we deliver an experience of elegance and trust.</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
@@ -220,7 +220,9 @@ export default function AboutPage() {
                 <div className="absolute -top-4 left-6 bg-[#D4AF37] text-[#5A0F1C] text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                   Verified
                 </div>
-                <p className="text-gray-700 italic mb-6">"{text}"</p>
+                <p className="text-gray-700 italic mb-6">
+                  &quot;{text}&quot;
+                </p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-[#5A0F1C]">
                     {String.fromCharCode(65 + i)}

@@ -1,5 +1,4 @@
 import Footer from "../components/Footer";
-import Navbar from "../components/Navbar";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import LayoutWrapper from "@/components/LayoutWrapper";
@@ -21,7 +20,7 @@ const poppins = Poppins({
 });
 
 export const metadata = {
-  title: "LuxxGlow Sarees – Buy Designer Sarees Online in India",
+  title: "LuxxGlow Sarees - Buy Designer Sarees Online in India",
   description:
     "Shop premium silk, cotton & designer sarees online in India. Wedding, party & daily wear sarees at best prices.",
   keywords:
@@ -31,17 +30,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-     <body className={`${playfair.variable} ${poppins.variable}`}>
-  <AuthProvider>
-  <CartProvider>
-    <LayoutWrapper>
-    {children}
-    </LayoutWrapper>
-    <Footer />
-  </CartProvider>
-  </AuthProvider>
-</body>
-
+      <body className={`${playfair.variable} ${poppins.variable}`}>
+        <AuthProvider>
+          <CartProvider>
+            <LayoutWrapper>{children}</LayoutWrapper>
+            <Footer />
+          </CartProvider>
+        </AuthProvider>
+      </body>
     </html>
   );
 }
