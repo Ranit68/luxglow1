@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -17,8 +18,14 @@ export default function ProductDetails() {
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const previewCanvasRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
+  const poseLandmarkerRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const uploadedImageRef = useRef(null);
+  const sareeImageRef = useRef(null);
+  const runningModeRef = useRef("VIDEO");
 
   const [showCartSuccess, setShowCartSuccess] = useState(false);
   const [product, setProduct] = useState(null);
@@ -35,8 +42,17 @@ export default function ProductDetails() {
   const [cameraError, setCameraError] = useState("");
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
+  const [visionReady, setVisionReady] = useState(false);
+  const [visionError, setVisionError] = useState("");
 
   const isInCart = cart?.some((item) => item.id === id);
+  const images = useMemo(() => {
+    if (product?.images?.length) {
+      return product.images;
+    }
+
+    return product?.imageUrl ? [product.imageUrl] : [];
+  }, [product]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -55,7 +71,43 @@ export default function ProductDetails() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      poseLandmarkerRef.current?.close?.();
     };
+  }, []);
+
+  useEffect(() => {
+    const initVision = async () => {
+      try {
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+        );
+
+        poseLandmarkerRef.current = await PoseLandmarker.createFromOptions(
+          vision,
+          {
+            baseOptions: {
+              modelAssetPath:
+                "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task",
+            },
+            runningMode: "VIDEO",
+            numPoses: 1,
+          }
+        );
+
+        setVisionReady(true);
+      } catch {
+        setVisionError(
+          "Pose detection could not be loaded. Camera preview will still work, but the saree cannot be positioned automatically."
+        );
+      }
+    };
+
+    initVision();
   }, []);
 
   useEffect(() => {
@@ -78,11 +130,161 @@ export default function ProductDetails() {
     attachStream();
   }, [cameraOpen, cameraStream]);
 
+  useEffect(() => {
+    if (!images[currentImg]) {
+      return;
+    }
+
+    const sareeImage = new window.Image();
+    sareeImage.crossOrigin = "anonymous";
+    sareeImage.src = images[currentImg];
+    sareeImageRef.current = sareeImage;
+  }, [currentImg, images]);
+
+  useEffect(() => {
+    if (!cameraOpen || !videoRef.current) {
+      return;
+    }
+
+    const renderVideoFrame = async () => {
+      const video = videoRef.current;
+
+      if (
+        !video ||
+        !previewCanvasRef.current ||
+        video.readyState < 2 ||
+        !poseLandmarkerRef.current
+      ) {
+        animationFrameRef.current = requestAnimationFrame(renderVideoFrame);
+        return;
+      }
+
+      if (runningModeRef.current !== "VIDEO") {
+        await poseLandmarkerRef.current.setOptions({ runningMode: "VIDEO" });
+        runningModeRef.current = "VIDEO";
+      }
+
+      const result = poseLandmarkerRef.current.detectForVideo(
+        video,
+        performance.now()
+      );
+
+      drawPreviewFrame(video, result?.landmarks?.[0] || null);
+      animationFrameRef.current = requestAnimationFrame(renderVideoFrame);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(renderVideoFrame);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [cameraOpen, currentImg, visionReady]);
+
+  useEffect(() => {
+    if (!tryOnImage || cameraOpen || !poseLandmarkerRef.current) {
+      return;
+    }
+
+    const image = new window.Image();
+    image.onload = async () => {
+      uploadedImageRef.current = image;
+
+      if (runningModeRef.current !== "IMAGE") {
+        await poseLandmarkerRef.current.setOptions({ runningMode: "IMAGE" });
+        runningModeRef.current = "IMAGE";
+      }
+
+      const result = poseLandmarkerRef.current.detect(image);
+      drawPreviewFrame(image, result?.landmarks?.[0] || null);
+    };
+    image.src = tryOnImage;
+  }, [cameraOpen, currentImg, tryOnImage, visionReady]);
+
   if (!product) {
     return <ProductSkeleton />;
   }
 
-  const images = product?.images?.length ? product.images : [product?.imageUrl];
+  function drawPreviewFrame(source, landmarks) {
+    const canvas = previewCanvasRef.current;
+    const sareeImage = sareeImageRef.current;
+
+    if (!canvas || !source) {
+      return;
+    }
+
+    const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
+    const sourceHeight =
+      source.videoHeight || source.naturalHeight || source.height;
+
+    if (!sourceWidth || !sourceHeight) {
+      return;
+    }
+
+    canvas.width = sourceWidth;
+    canvas.height = sourceHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+    if (!landmarks || !sareeImage?.complete) {
+      ctx.fillStyle = "rgba(17,17,17,0.55)";
+      ctx.fillRect(20, 20, 260, 48);
+      ctx.fillStyle = "#fff";
+      ctx.font = "600 18px sans-serif";
+      ctx.fillText("Align your upper body in frame", 36, 50);
+      return;
+    }
+
+    const leftShoulder = landmarks[11];
+    const rightShoulder = landmarks[12];
+    const leftHip = landmarks[23];
+    const rightHip = landmarks[24];
+
+    if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+      return;
+    }
+
+    const shoulderCenterX =
+      ((leftShoulder.x + rightShoulder.x) / 2) * canvas.width;
+    const shoulderCenterY =
+      ((leftShoulder.y + rightShoulder.y) / 2) * canvas.height;
+    const hipCenterY = ((leftHip.y + rightHip.y) / 2) * canvas.height;
+
+    const shoulderSpan =
+      Math.abs(rightShoulder.x - leftShoulder.x) * canvas.width;
+    const torsoHeight = Math.max(hipCenterY - shoulderCenterY, canvas.height * 0.2);
+    const angle = Math.atan2(
+      (rightShoulder.y - leftShoulder.y) * canvas.height,
+      (rightShoulder.x - leftShoulder.x) * canvas.width
+    );
+
+    const overlayWidth = shoulderSpan * 2.6;
+    const overlayHeight = torsoHeight * 3.2;
+    const overlayX = shoulderCenterX;
+    const overlayY = shoulderCenterY + torsoHeight * 0.95;
+
+    ctx.save();
+    ctx.translate(overlayX, overlayY);
+    ctx.rotate(angle);
+    ctx.globalAlpha = 0.82;
+    ctx.drawImage(
+      sareeImage,
+      -overlayWidth / 2,
+      -overlayHeight / 2,
+      overlayWidth,
+      overlayHeight
+    );
+    ctx.restore();
+
+    ctx.fillStyle = "rgba(17,17,17,0.45)";
+    ctx.fillRect(20, 20, 230, 44);
+    ctx.fillStyle = "#fff";
+    ctx.font = "600 16px sans-serif";
+    ctx.fillText("Pose-based saree placement", 36, 48);
+  }
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -91,6 +293,7 @@ export default function ProductDetails() {
     }
 
     setCameraStream(null);
+    uploadedImageRef.current = null;
 
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -184,7 +387,7 @@ export default function ProductDetails() {
     canvas.height = video.videoHeight;
 
     const context = canvas.getContext("2d");
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    context.drawImage(previewCanvasRef.current, 0, 0, canvas.width, canvas.height);
     setTryOnImage(canvas.toDataURL("image/png"));
     stopCamera();
   };
@@ -195,10 +398,11 @@ export default function ProductDetails() {
       return;
     }
 
-    const reader = new FileReader();
+      const reader = new FileReader();
     reader.onload = () => {
       setTryOnImage(reader.result?.toString() || "");
       setCameraError("");
+      stopCamera();
     };
     reader.readAsDataURL(file);
   };
@@ -403,46 +607,18 @@ export default function ProductDetails() {
             <div className="grid gap-6 p-6 md:grid-cols-2">
               <div className="space-y-4">
                 <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[1.75rem] bg-[#F6EEE7]">
-                  {tryOnImage ? (
+                  {cameraOpen || tryOnImage ? (
                     <>
-                      <Image
-                        src={tryOnImage}
-                        alt="Your try-on preview"
-                        fill
-                        sizes="(min-width: 768px) 40vw, 100vw"
-                        className="object-cover"
-                      />
-                      <div className="pointer-events-none absolute inset-x-[16%] bottom-0 top-[34%] overflow-hidden rounded-t-[40%] opacity-60 mix-blend-multiply">
-                        <Image
-                          src={images[currentImg]}
-                          alt={`${product.name} overlay`}
-                          fill
-                          sizes="(min-width: 768px) 20vw, 80vw"
-                          className="object-cover"
-                        />
-                      </div>
-                    </>
-                  ) : cameraOpen ? (
-                    <>
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        muted
-                        playsInline
+                      <canvas
+                        ref={previewCanvasRef}
                         className="h-full w-full object-cover"
                       />
-                      <div className="pointer-events-none absolute inset-x-[16%] bottom-0 top-[34%] overflow-hidden rounded-t-[40%] opacity-55 mix-blend-multiply">
-                        <Image
-                          src={images[currentImg]}
-                          alt={`${product.name} live overlay`}
-                          fill
-                          sizes="(min-width: 768px) 20vw, 80vw"
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="pointer-events-none absolute inset-x-6 top-6 rounded-full bg-black/40 px-4 py-2 text-center text-xs font-medium tracking-[0.2em] text-white">
-                        LIVE PREVIEW + SAREE OVERLAY
-                      </div>
+                      <video ref={videoRef} autoPlay muted playsInline className="hidden" />
+                      {!visionReady && !visionError && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 text-center text-sm font-medium text-white">
+                          Loading body detection...
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="max-w-xs text-center">
@@ -459,9 +635,9 @@ export default function ProductDetails() {
                   <canvas ref={canvasRef} className="hidden" />
                 </div>
 
-                {cameraError && (
+                {(cameraError || visionError) && (
                   <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {cameraError}
+                    {cameraError || visionError}
                   </p>
                 )}
 
@@ -552,9 +728,9 @@ export default function ProductDetails() {
                     What users can do right now
                   </h3>
                   <div className="mt-4 space-y-3 text-sm text-gray-600">
-                    <p>1. Use the front camera for a quick live preview.</p>
+                    <p>1. Use the front camera for shoulder and torso tracking.</p>
                     <p>2. Upload an existing photo from mobile or desktop.</p>
-                    <p>3. Compare their image with the exact saree selection.</p>
+                    <p>3. The saree is positioned below the face using pose landmarks.</p>
                   </div>
                 </div>
 
