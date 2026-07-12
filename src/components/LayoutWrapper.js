@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import DurgaPujoExperience from "@/components/DurgaPujoExperience";
 
 export default function LayoutWrapper({ children }) {
 
@@ -14,6 +15,7 @@ export default function LayoutWrapper({ children }) {
 
   return (
     <>
+      <DurgaPujoExperience />
       {!hideNavbar && <Navbar />}
       {children}
     </>

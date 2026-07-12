@@ -1,189 +1,332 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useCart } from "@/context/CartContext";
-import { useAuth } from "@/context/AuthContext";
-import { db } from "@/lib/firebase";
 import {
-  collection,
   addDoc,
-  getDocs,
+  collection,
   deleteDoc,
   doc,
+  getDocs,
   Timestamp,
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import AuthPromptModal from "@/components/AuthPromptModal";
+import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+
+const PAYMENT_METHODS = {
+  cod: "Cash on Delivery",
+  instamojo: "Instamojo",
+};
+
+const createEmptyForm = () => ({
+  name: "",
+  phone: "",
+  line1: "",
+  line2: "",
+  pincode: "",
+  city: "",
+  district: "",
+  state: "",
+  codAvailable: true,
+});
+
+function getDraftStorageKey(userId) {
+  return `checkout:draft:${userId}`;
+}
+
+function createOrderRef() {
+  return `LG${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    .replace(/[^A-Za-z0-9]/g, "")
+    .slice(0, 30)
+    .toUpperCase();
+}
 
 export default function CheckoutPage() {
-  const { cart } = useCart();
+  const { cart, clearCart } = useCart();
   const { user } = useAuth();
   const router = useRouter();
-
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [addressSaving, setAddressSaving] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [formSuccess, setFormSuccess] = useState("");
+  const [orderError, setOrderError] = useState("");
+  const [deliveryLookupError, setDeliveryLookupError] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [form, setForm] = useState(createEmptyForm());
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    line1: "",
-    line2: "",
-    pincode: "",
-    city: "",
-    district: "",
-  });
-
-  const total =
-    cart?.reduce((acc, item) => acc + item.price * item.qty, 0) || 0;
-
-  /* ================= FETCH ADDRESSES ================= */
+  const total = cart?.reduce((acc, item) => acc + item.price * item.qty, 0) || 0;
 
   useEffect(() => {
     if (!user) return;
 
     const fetchAddresses = async () => {
-      const snapshot = await getDocs(
-        collection(db, "users", user.uid, "addresses")
+      const snapshot = await getDocs(collection(db, "users", user.uid, "addresses"));
+      setAddresses(
+        snapshot.docs.map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }))
       );
-
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      setAddresses(data);
     };
 
     fetchAddresses();
   }, [user]);
 
-  /* ================= PINCODE AUTO FILL ================= */
-
   const fetchLocation = async (pin) => {
-    if (pin.length !== 6) return;
+    if (pin.length !== 6) {
+      setDeliveryLookupError("");
+      return;
+    }
+
+    setDeliveryLookupError("");
 
     try {
-      const res = await fetch("/api/check-delivery", {
+      const response = await fetch("/api/check-delivery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pincode: pin }),
       });
 
-      const data = await res.json();
-      if (!data.serviceable) return;
+      const data = await response.json();
+
+      if (!response.ok || !data.serviceable) {
+        setDeliveryLookupError(data.error || "This pincode is not serviceable.");
+        return;
+      }
 
       setForm((prev) => ({
         ...prev,
         city: data.city,
         district: data.district,
+        state: data.state || "",
+        codAvailable: data.cod !== false,
       }));
     } catch {
-      console.log("Pincode fetch failed");
+      setDeliveryLookupError("Could not verify this pincode right now.");
     }
   };
 
-  /* ================= SAVE ADDRESS ================= */
+  const validateAddressForm = () => {
+    if (!form.name.trim()) return "Enter full name";
+    if (!/^[0-9]{10}$/.test(form.phone)) return "Enter valid 10 digit phone number";
+    if (!form.line1.trim()) return "Enter Address Line 1";
+    if (!/^[0-9]{6}$/.test(form.pincode)) return "Enter valid 6 digit pincode";
+    if (!form.city) return "Enter a serviceable pincode";
+    if (addresses.length >= 3) return "Maximum 3 addresses allowed";
+    return "";
+  };
 
   const saveAddress = async () => {
-    if (!form.name.trim()) return alert("Enter full name");
-    if (!/^[0-9]{10}$/.test(form.phone))
-      return alert("Enter valid 10 digit phone number");
-    if (!form.line1.trim()) return alert("Enter Address Line 1");
-    if (!/^[0-9]{6}$/.test(form.pincode))
-      return alert("Enter valid 6 digit pincode");
-    if (!form.city) return alert("Enter valid pincode");
-    if (addresses.length >= 3)
-      return alert("Maximum 3 addresses allowed");
+    const validationError = validateAddressForm();
+    setFormSuccess("");
+    setFormError(validationError);
+
+    if (validationError) {
+      return;
+    }
+
+    setAddressSaving(true);
 
     try {
-      const docRef = await addDoc(
-        collection(db, "users", user.uid, "addresses"),
-        form
-      );
-
-      setAddresses([...addresses, { id: docRef.id, ...form }]);
-
-      setForm({
-        name: "",
-        phone: "",
-        line1: "",
-        line2: "",
-        pincode: "",
-        city: "",
-        district: "",
-      });
-
-      alert("Address saved successfully ✅");
+      const payload = {
+        ...form,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        line1: form.line1.trim(),
+        line2: form.line2.trim(),
+      };
+      const docRef = await addDoc(collection(db, "users", user.uid, "addresses"), payload);
+      setAddresses((prev) => [...prev, { id: docRef.id, ...payload }]);
+      setForm(createEmptyForm());
+      setDeliveryLookupError("");
+      setFormSuccess("Address saved successfully.");
+      setFormError("");
     } catch {
-      alert("Failed to save address");
+      setFormError("Failed to save address. Please try again.");
     }
-  };
 
-  /* ================= DELETE ADDRESS ================= */
+    setAddressSaving(false);
+  };
 
   const deleteAddress = async (id) => {
     await deleteDoc(doc(db, "users", user.uid, "addresses", id));
-    setAddresses(addresses.filter((a) => a.id !== id));
+    setAddresses((prev) => prev.filter((address) => address.id !== id));
+
+    if (selectedAddress?.id === id) {
+      setSelectedAddress(null);
+    }
   };
 
-  /* ================= PLACE ORDER ================= */
+  const validateCheckout = () => {
+    if (!selectedAddress) {
+      return "Select a delivery address before placing the order.";
+    }
 
-  const placeOrder = async () => {
-    if (!selectedAddress) return alert("Select address");
+    if (paymentMethod === "cod" && selectedAddress.codAvailable === false) {
+      return "Cash on Delivery is not available for this pincode. Please choose Instamojo.";
+    }
 
-    setLoading(true);
+    if (paymentMethod === "instamojo" && !user?.email) {
+      return "Your account needs an email address for Instamojo payment.";
+    }
+
+    return "";
+  };
+
+  const createCodOrder = async () => {
+    const orderRef = createOrderRef();
 
     await addDoc(collection(db, "orders"), {
+      orderRef,
       userId: user.uid,
       userEmail: user.email || "",
       address: selectedAddress,
       items: cart,
       total,
       status: "Pending",
+      paymentMethod: PAYMENT_METHODS.cod,
+      paymentStatus: "Pending",
       createdAt: Timestamp.now(),
     });
 
-    localStorage.removeItem("cart");
-    router.push("/");
-    setLoading(false);
+    clearCart();
+    router.push(`/checkout/status?status=success&orderRef=${orderRef}`);
   };
 
-  /* ================= EMPTY CART ================= */
+  const startInstamojoPayment = async () => {
+    const orderRef = createOrderRef();
+    const draft = {
+      orderRef,
+      userId: user.uid,
+      userEmail: user.email || "",
+      address: selectedAddress,
+      items: cart,
+      total,
+      paymentMethod: PAYMENT_METHODS.instamojo,
+      createdAt: Date.now(),
+    };
+
+    localStorage.setItem(getDraftStorageKey(user.uid), JSON.stringify(draft));
+
+    const response = await fetch("/api/payments/instamojo/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: total,
+        buyerName: selectedAddress.name,
+        email: user.email,
+        phone: selectedAddress.phone,
+        orderRef,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.paymentUrl) {
+      throw new Error(data.error || "Could not start Instamojo payment.");
+    }
+
+    localStorage.setItem(
+      getDraftStorageKey(user.uid),
+      JSON.stringify({
+        ...draft,
+        paymentRequestId: data.paymentRequestId || "",
+        paymentUrl: data.paymentUrl,
+      })
+    );
+
+    window.location.href = data.paymentUrl;
+  };
+
+  const placeOrder = async () => {
+    setOrderError("");
+    const validationError = validateCheckout();
+
+    if (validationError) {
+      setOrderError(validationError);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (paymentMethod === "cod") {
+        await createCodOrder();
+        return;
+      }
+
+      await startInstamojoPayment();
+    } catch {
+      setOrderError("Failed to continue checkout. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <>
+        <main className="min-h-screen bg-gradient-to-b from-[#F8F6F3] to-white px-4 pt-24 md:px-8">
+          <div className="mx-auto max-w-5xl rounded-[2rem] bg-white p-8 text-center shadow-[0_24px_60px_rgba(62,25,18,0.10)] md:p-14">
+            <h1 className="text-4xl font-semibold text-[#3E0E18]">Checkout requires an account</h1>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[#5B4038]">
+              Login or register to save delivery addresses, place orders, and keep your purchase history attached to your profile.
+            </p>
+            <button
+              onClick={() => setShowAuthPrompt(true)}
+              className="mt-8 rounded-full bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37] px-8 py-4 text-sm font-medium text-white"
+            >
+              Login to continue
+            </button>
+          </div>
+        </main>
+
+        <AuthPromptModal
+          action="buy"
+          open={showAuthPrompt}
+          onClose={() => setShowAuthPrompt(false)}
+          redirect="/checkout"
+          title="Login to access checkout"
+          description="Checkout and address saving are available only after authentication."
+        />
+      </>
+    );
+  }
 
   if (!cart || cart.length === 0) {
     return (
-      <main className="pt-28 min-h-screen flex flex-col items-center justify-center">
-        <h1 className="text-3xl mb-4">Your cart is empty 🛒</h1>
-        <button
-          onClick={() => router.push("/shop")}
-          className="text-[#5A0F1C] underline"
-        >
+      <main className="flex min-h-screen flex-col items-center justify-center pt-28">
+        <h1 className="mb-4 text-3xl">Your cart is empty</h1>
+        <button onClick={() => router.push("/shop")} className="text-[#5A0F1C] underline">
           Continue Shopping
         </button>
       </main>
     );
   }
 
-  /* ================= MAIN UI ================= */
-
   return (
-    <main className="pt-24 bg-gradient-to-b from-[#F8F6F3] to-white min-h-screen px-4 md:px-8">
-      <div className="max-w-7xl mx-auto py-12 grid lg:grid-cols-3 gap-10">
+    <main className="min-h-screen bg-gradient-to-b from-[#F8F6F3] to-white px-4 pt-24 md:px-8">
+      <div className="mx-auto grid max-w-7xl gap-10 py-12 lg:grid-cols-3">
+        <div className="space-y-10 lg:col-span-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#8E2437]">
+              Authenticated Checkout
+            </p>
+            <h1 className="mt-3 text-3xl font-bold text-[#3E0E18] md:text-4xl">
+              Secure Checkout
+            </h1>
+            <p className="mt-3 text-sm text-[#6B4A42]">
+              Name, phone, and delivery address will be saved for order confirmation and Delhivery shipment processing.
+            </p>
+          </div>
 
-        {/* LEFT SECTION */}
-        <div className="lg:col-span-2 space-y-10">
+          <div className="rounded-3xl border bg-white p-8 shadow-lg">
+            <h2 className="mb-6 text-xl font-semibold text-[#5A0F1C]">Delivery Address</h2>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-[#3E0E18]">
-            Secure Checkout
-          </h1>
-
-          <div className="bg-white rounded-3xl p-8 shadow-lg border">
-
-            <h2 className="text-xl font-semibold mb-6 text-[#5A0F1C]">
-              Delivery Address
-            </h2>
-
-            {/* SAVED ADDRESSES */}
             <div className="space-y-4">
               {addresses.map((addr) => {
                 const isSelected = selectedAddress?.id === addr.id;
@@ -192,155 +335,191 @@ export default function CheckoutPage() {
                   <div
                     key={addr.id}
                     onClick={() => setSelectedAddress(addr)}
-                    className={`p-5 rounded-2xl border cursor-pointer transition
-                    ${isSelected
+                    className={`cursor-pointer rounded-2xl border p-5 transition ${
+                      isSelected
                         ? "border-[#5A0F1C] bg-[#5A0F1C]/5 shadow-md"
                         : "border-gray-200 hover:border-[#5A0F1C]/40"
-                      }`}
+                    }`}
                   >
-                    <div className="flex justify-between">
-
+                    <div className="flex justify-between gap-4">
                       <div>
                         <p className="font-semibold">{addr.name}</p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {addr.line1}, {addr.line2}
+                        <p className="mt-1 text-sm text-gray-600">
+                          {addr.line1}
+                          {addr.line2 ? `, ${addr.line2}` : ""}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {addr.city}, {addr.district} - {addr.pincode}
+                          {addr.city}, {addr.district}
+                          {addr.state ? `, ${addr.state}` : ""} - {addr.pincode}
                         </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          📞 {addr.phone}
-                        </p>
+                        <p className="mt-1 text-sm text-gray-500">Phone: {addr.phone}</p>
+                        {addr.codAvailable === false && (
+                          <p className="mt-2 text-xs font-medium text-amber-700">
+                            COD is not available for this pincode.
+                          </p>
+                        )}
                       </div>
 
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        onClick={(event) => {
+                          event.stopPropagation();
                           deleteAddress(addr.id);
                         }}
                         className="text-red-500"
                       >
-                        🗑
+                        Delete
                       </button>
-
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* ADD NEW ADDRESS */}
             <div className="mt-10 border-t pt-8">
-              <h3 className="font-semibold text-lg mb-4">
-                Add New Address
-              </h3>
+              <h3 className="mb-4 text-lg font-semibold">Add New Address</h3>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              {(formError || formSuccess || deliveryLookupError) && (
+                <div className="mb-4 space-y-2 text-sm">
+                  {formError && <p className="text-red-600">{formError}</p>}
+                  {deliveryLookupError && <p className="text-red-600">{deliveryLookupError}</p>}
+                  {formSuccess && <p className="text-green-600">{formSuccess}</p>}
+                </div>
+              )}
 
+              <div className="grid gap-4 md:grid-cols-2">
                 <input
                   placeholder="Full Name"
                   className="input-modern"
                   value={form.name}
-                  onChange={(e)=>setForm({...form,name:e.target.value})}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
                 />
-
                 <input
                   placeholder="Phone"
                   className="input-modern"
                   value={form.phone}
-                  onChange={(e)=>setForm({...form,phone:e.target.value})}
+                  onChange={(event) => setForm({ ...form, phone: event.target.value })}
                 />
-
                 <input
                   placeholder="Address Line 1"
                   className="input-modern md:col-span-2"
                   value={form.line1}
-                  onChange={(e)=>setForm({...form,line1:e.target.value})}
+                  onChange={(event) => setForm({ ...form, line1: event.target.value })}
                 />
-
                 <input
                   placeholder="Address Line 2"
                   className="input-modern md:col-span-2"
                   value={form.line2}
-                  onChange={(e)=>setForm({...form,line2:e.target.value})}
+                  onChange={(event) => setForm({ ...form, line2: event.target.value })}
                 />
-
                 <input
                   placeholder="Pincode"
                   className="input-modern"
                   value={form.pincode}
-                  onChange={(e)=>{
-                    setForm({...form,pincode:e.target.value});
-                    fetchLocation(e.target.value);
+                  onChange={(event) => {
+                    setForm({ ...form, pincode: event.target.value });
+                    fetchLocation(event.target.value);
                   }}
                 />
-
-                <input
-                  value={form.city}
-                  disabled
-                  placeholder="City"
-                  className="input-modern bg-gray-100"
-                />
-
+                <input value={form.city} disabled placeholder="City" className="input-modern bg-gray-100" />
                 <input
                   value={form.district}
                   disabled
                   placeholder="District"
-                  className="input-modern"
+                  className="input-modern bg-gray-100"
                 />
-
+                <input value={form.state} disabled placeholder="State" className="input-modern bg-gray-100" />
               </div>
 
               <button
                 onClick={saveAddress}
-                className="mt-6 bg-[#5A0F1C] text-white px-8 py-3 rounded-full hover:opacity-90 transition"
+                disabled={addressSaving}
+                className="mt-6 rounded-full bg-[#5A0F1C] px-8 py-3 text-white transition hover:opacity-90 disabled:opacity-60"
               >
-                Save Address
+                {addressSaving ? "Saving Address..." : "Save Address"}
               </button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT SECTION */}
-        <div className="bg-white p-8 rounded-3xl shadow-xl border h-fit lg:sticky lg:top-28">
-
-          <h2 className="text-2xl font-semibold mb-6">
-            Order Summary
-          </h2>
-
+        <div className="h-fit rounded-3xl border bg-white p-8 shadow-xl lg:sticky lg:top-28">
+          <h2 className="mb-6 text-2xl font-semibold">Order Summary</h2>
           <div className="space-y-3">
             {cart.map((item) => (
               <div key={item.id} className="flex justify-between text-sm">
-                <span>{item.name} x {item.qty}</span>
-                <span>₹{item.price * item.qty}</span>
+                <span>
+                  {item.name} x {item.qty}
+                </span>
+                <span>Rs. {item.price * item.qty}</span>
               </div>
             ))}
           </div>
 
-          <div className="border-t my-6"></div>
+          <div className="my-6 border-t" />
 
-          <div className="flex justify-between text-lg font-medium">
-            <span>Total</span>
-            <span className="text-[#5A0F1C] font-bold">
-              ₹{total}
-            </span>
+          <div className="rounded-2xl bg-[#F8F6F3] px-4 py-4 text-sm text-[#5A0F1C]">
+            <p className="font-medium">Choose Payment Method</p>
+            <div className="mt-4 grid gap-3">
+              <button
+                onClick={() => setPaymentMethod("cod")}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  paymentMethod === "cod"
+                    ? "border-[#5A0F1C] bg-white shadow-sm"
+                    : "border-transparent bg-white/60"
+                }`}
+              >
+                <p className="font-semibold">{PAYMENT_METHODS.cod}</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  Order is created immediately with payment pending for delivery.
+                </p>
+              </button>
+
+              <button
+                onClick={() => setPaymentMethod("instamojo")}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  paymentMethod === "instamojo"
+                    ? "border-[#5A0F1C] bg-white shadow-sm"
+                    : "border-transparent bg-white/60"
+                }`}
+              >
+                <p className="font-semibold">{PAYMENT_METHODS.instamojo}</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  Order is created only after Instamojo confirms successful payment.
+                </p>
+              </button>
+            </div>
+            {paymentMethod === "instamojo" && (
+              <p className="mt-4 text-xs text-gray-600">
+                Instamojo will use your account email
+                {user.email ? `: ${user.email}` : "."}
+              </p>
+            )}
           </div>
+
+          <div className="mt-6 flex justify-between text-lg font-medium">
+            <span>Total</span>
+            <span className="font-bold text-[#5A0F1C]">Rs. {total}</span>
+          </div>
+
+          {orderError && <p className="mt-4 text-sm text-red-600">{orderError}</p>}
 
           <button
             onClick={placeOrder}
             disabled={loading}
-            className="w-full mt-8 py-4 rounded-full bg-[#5A0F1C]
-            text-white font-semibold hover:opacity-90 transition shadow-lg"
+            className="mt-8 w-full rounded-full bg-[#5A0F1C] py-4 font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
           >
-            {loading ? "Placing Order..." : "Place Order (Cash on Delivery)"}
+            {loading
+              ? paymentMethod === "instamojo"
+                ? "Redirecting to Instamojo..."
+                : "Placing COD Order..."
+              : paymentMethod === "instamojo"
+                ? "Pay with Instamojo"
+                : "Place COD Order"}
           </button>
 
-          <p className="text-xs text-gray-500 mt-6 text-center">
-            🔒 Secure Checkout | Safe & Encrypted
+          <p className="mt-6 text-center text-xs text-gray-500">
+            Secure checkout with account-linked address, payment verification, and order history.
           </p>
-
         </div>
-
       </div>
     </main>
   );

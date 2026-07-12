@@ -1,44 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-
   const router = useRouter();
-  const { user } = useAuth();
-
   const searchParams = useSearchParams();
-const redirect = searchParams.get("redirect") || "/";
+  const { user } = useAuth();
+  const redirect = searchParams.get("redirect") || "/";
+  const encodedRedirect = encodeURIComponent(redirect);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /* ✅ Prevent logged users */
   useEffect(() => {
-    if (user) {
-      router.replace(redirect);
-    }
+    if (user) router.replace(redirect);
   }, [redirect, router, user]);
 
-  /* ✅ Login */
-  const handleLogin = async (e) => {
-    e.preventDefault();
-
+  const handleLogin = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setError("");
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.replace("/");
+      router.replace(redirect);
     } catch {
       setError("Invalid email or password");
     }
@@ -46,96 +39,70 @@ const redirect = searchParams.get("redirect") || "/";
     setLoading(false);
   };
 
-  /* ✅ Skip Login */
-  const handleSkip = () => {
-    router.replace("/");
-  };
-
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#FAF6F0] px-4">
-
+    <main className="flex min-h-screen items-center justify-center bg-[#FAF6F0] px-4">
       <form
         onSubmit={handleLogin}
-        className="relative bg-white p-10 rounded-3xl shadow-xl w-full max-w-md"
+        className="relative w-full max-w-md rounded-3xl bg-white p-10 shadow-xl"
       >
-
-        {/* ✅ Skip Button */}
-        <button
-          type="button"
-          onClick={handleSkip}
-          className="absolute top-5 right-6 text-sm text-gray-500 hover:text-[#5A0F1C]"
+        <Link
+          href="/"
+          className="absolute right-6 top-5 text-sm text-gray-500 transition hover:text-[#5A0F1C]"
         >
-          Skip →
-        </button>
+          Browse only
+        </Link>
 
-        <h1 className="text-3xl text-[#5A0F1C] mb-6 font-semibold text-center">
+        <h1 className="mb-2 text-center text-3xl font-semibold text-[#5A0F1C]">
           Welcome Back
         </h1>
+        <p className="mb-6 text-center text-sm text-[#6B4A42]">
+          Login to access saved products, cart, and checkout.
+        </p>
 
-        {/* EMAIL */}
         <input
           type="email"
           placeholder="Email"
           required
           value={email}
-          onChange={(e)=>setEmail(e.target.value)}
-          className="w-full border p-3 rounded-xl mb-4 outline-none
-          focus:ring-2 focus:ring-[#5A0F1C]"
+          onChange={(event) => setEmail(event.target.value)}
+          className="mb-4 w-full rounded-xl border p-3 outline-none focus:ring-2 focus:ring-[#5A0F1C]"
         />
 
-        {/* PASSWORD WITH EYE ICON */}
         <div className="relative mb-4">
-
           <input
             type={showPassword ? "text" : "password"}
             placeholder="Password"
             required
             value={password}
-            onChange={(e)=>setPassword(e.target.value)}
-            className="w-full border p-3 rounded-xl pr-12 outline-none
-            focus:ring-2 focus:ring-[#5A0F1C]"
+            onChange={(event) => setPassword(event.target.value)}
+            className="w-full rounded-xl border p-3 pr-12 outline-none focus:ring-2 focus:ring-[#5A0F1C]"
           />
 
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={() => setShowPassword((value) => !value)}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
           >
-            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
-
         </div>
 
-        {/* ERROR */}
-        {error && (
-          <p className="text-red-500 mb-3 text-sm text-center">
-            {error}
-          </p>
-        )}
+        {error && <p className="mb-3 text-center text-sm text-red-500">{error}</p>}
 
-        {/* LOGIN BUTTON */}
         <button
           disabled={loading}
-          className="w-full py-3 rounded-full text-white
-          bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37]
-          hover:opacity-90 transition"
+          className="w-full rounded-full bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37] py-3 text-white transition hover:opacity-90"
         >
           {loading ? "Logging in..." : "Login"}
         </button>
 
-        {/* SIGNUP */}
-        <p className="mt-6 text-sm text-center">
+        <p className="mt-6 text-center text-sm">
           No account?{" "}
-          <span
-            onClick={()=>router.replace("/signup")}
-            className="text-[#5A0F1C] cursor-pointer font-medium"
-          >
+          <Link href={`/signup?redirect=${encodedRedirect}`} className="font-medium text-[#5A0F1C]">
             Sign up
-          </span>
+          </Link>
         </p>
-
       </form>
-
     </main>
   );
 }

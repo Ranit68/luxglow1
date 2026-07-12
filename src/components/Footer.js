@@ -3,13 +3,20 @@ import { Facebook, Instagram, Mail, Phone } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="mt-24 bg-[#0E0E0E] text-gray-300">
+    <footer className="mt-24 overflow-hidden bg-[#1A1110] text-gray-300">
       <div className="mx-auto grid max-w-7xl gap-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <h2 className="text-3xl font-semibold text-[#D4AF37]">Lux&Glow</h2>
-          <p className="mt-4 leading-relaxed text-gray-400">
-            Discover premium sarees crafted for weddings, celebrations, and
-            timeless elegance.
+          <div className="inline-flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#5A0F1C] via-[#8E2437] to-[#D4AF37] text-sm font-semibold uppercase tracking-[0.2em] text-white">
+              L&G
+            </span>
+            <div>
+              <h2 className="text-3xl font-semibold text-[#F4E6D8]">Luxe&Glow</h2>
+              <p className="text-[11px] uppercase tracking-[0.34em] text-[#C8A989]">Saree House</p>
+            </div>
+          </div>
+          <p className="mt-5 max-w-sm leading-relaxed text-gray-400">
+            Discover premium sarees curated for weddings, celebrations, festive dressing, and refined everyday elegance.
           </p>
           <p className="mt-6 text-sm text-gray-500">
             Trusted by modern women across India.
@@ -59,7 +66,7 @@ export default function Footer() {
           <div className="space-y-3 text-gray-400">
             <p className="flex items-center gap-2">
               <Mail size={16} />
-              support@luxxglow.com
+              support@luxeandglow.com
             </p>
             <p className="flex items-center gap-2">
               <Phone size={16} />
@@ -89,7 +96,7 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-gray-800 py-6 text-center text-sm text-gray-500">
-        &copy; {new Date().getFullYear()} Lux&Glow Sarees. All rights reserved.
+        &copy; {new Date().getFullYear()} Luxe&Glow Sarees. All rights reserved.
       </div>
     </footer>
   );

@@ -4,7 +4,7 @@ export default function RefundPolicy() {
       <h1 className="text-4xl font-bold mb-6">Refund & Cancellation Policy</h1>
 
       <p className="mb-4">
-        At Lux&Glow, customer satisfaction is important to us. Please read our
+        At Luxe&Glow, customer satisfaction is important to us. Please read our
         return and refund policy carefully.
       </p>
 

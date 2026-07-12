@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
       <h1 className="text-4xl font-bold mb-6">Privacy Policy</h1>
 
       <p className="mb-4">
-        At Lux&Glow, we value your privacy and are committed to protecting your
+        At Luxe&Glow, we value your privacy and are committed to protecting your
         personal information.
       </p>
 

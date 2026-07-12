@@ -1,64 +1,119 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 const CartContext = createContext();
 
+const readCartForUser = (userId) => {
+  if (typeof window === "undefined" || !userId) {
+    return [];
+  }
+
+  const savedCart = localStorage.getItem(`cart:${userId}`);
+  return savedCart ? JSON.parse(savedCart) : [];
+};
+
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState(() => {
-    if (typeof window === "undefined") {
-      return null;
+  const { user } = useAuth();
+  const [cartCache, setCartCache] = useState({});
+
+  const userId = user?.uid || null;
+  const cart = useMemo(() => {
+    if (!userId) {
+      return [];
     }
 
-    const savedCart = localStorage.getItem("cart");
-    return savedCart ? JSON.parse(savedCart) : [];
-  });
+    return cartCache[userId] ?? readCartForUser(userId);
+  }, [cartCache, userId]);
 
   useEffect(() => {
-    if (cart !== null) {
-      localStorage.setItem("cart", JSON.stringify(cart));
+    if (typeof window === "undefined" || !userId) {
+      return;
     }
-  }, [cart]);
+
+    localStorage.setItem(`cart:${userId}`, JSON.stringify(cart));
+  }, [cart, userId]);
+
+  const updateCart = (updater) => {
+    if (!userId) {
+      return;
+    }
+
+    setCartCache((prev) => {
+      const currentCart = prev[userId] ?? readCartForUser(userId);
+      const nextCart =
+        typeof updater === "function" ? updater(currentCart) : updater;
+
+      return {
+        ...prev,
+        [userId]: nextCart,
+      };
+    });
+  };
+
   const addToCart = (product) => {
-    setCart((prev) => {
+    updateCart((prev) => {
       const exist = prev.find((item) => item.id === product.id);
+
       if (exist) {
         return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, qty: item.qty + 1 }
-            : item
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
         );
       }
+
       return [...prev, { ...product, qty: 1 }];
     });
   };
+
   const increaseQty = (id) => {
-    setCart((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, qty: item.qty + 1 } : item
-      )
+    updateCart((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, qty: item.qty + 1 } : item))
     );
   };
+
   const decreaseQty = (id) => {
-    setCart((prev) =>
+    updateCart((prev) =>
       prev
-        .map((item) =>
-          item.id === id ? { ...item, qty: item.qty - 1 } : item
-        )
+        .map((item) => (item.id === id ? { ...item, qty: item.qty - 1 } : item))
         .filter((item) => item.qty > 0)
     );
   };
+
   const buyNow = (product) => {
-    setCart([{ ...product, qty: 1 }]); 
+    updateCart([{ ...product, qty: 1 }]);
   };
 
-
   const removeItem = (id) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
+    updateCart((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const clearCart = () => {
+    if (typeof window !== "undefined" && userId) {
+      localStorage.removeItem(`cart:${userId}`);
+    }
+
+    if (!userId) {
+      return;
+    }
+
+    setCartCache((prev) => ({
+      ...prev,
+      [userId]: [],
+    }));
   };
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, buyNow, increaseQty, decreaseQty, removeItem }}
+      value={{
+        cart,
+        addToCart,
+        buyNow,
+        increaseQty,
+        decreaseQty,
+        removeItem,
+        clearCart,
+      }}
     >
       {children}
     </CartContext.Provider>

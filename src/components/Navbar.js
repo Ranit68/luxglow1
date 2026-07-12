@@ -1,33 +1,36 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Heart, Menu, ShoppingBag, UserRound, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { useSavedProducts } from "@/context/SavedProductsContext";
 
 export default function Navbar() {
   const { cart } = useCart();
-  const cartCount = cart?.length || 0;
   const { user, logout } = useAuth();
+  const { savedProducts } = useSavedProducts();
+
+  const cartCount = cart?.length || 0;
+  const savedCount = savedProducts.length;
 
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const menuRef = useRef(); // ⭐ for outside click
+  const menuRef = useRef(null);
 
-  // detect scroll
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 30) setScrolled(true);
-      else setScrolled(false);
+      setScrolled(window.scrollY > 30);
     };
+
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ⭐ CLOSE MENU WHEN CLICK OUTSIDE
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
         setOpen(false);
       }
     };
@@ -37,89 +40,104 @@ export default function Navbar() {
   }, []);
 
   return (
-    <div className="fixed w-full z-50 flex justify-center">
+    <div className="fixed z-50 flex w-full justify-center">
       <nav
         ref={menuRef}
-        className={`
-        transition-all duration-300
-        ${scrolled
-            ? "w-full rounded-none bg-white shadow-md mt-0"
-            : "w-[95%] mt-5 rounded-2xl bg-white/70 backdrop-blur-lg shadow-lg"}
-        `}
+        className={`transition-all duration-300 ${
+          scrolled
+            ? "mt-0 w-full border-b border-[#EADBCF] bg-[rgba(250,246,240,0.96)] shadow-[0_10px_28px_rgba(62,25,18,0.07)] backdrop-blur-xl"
+            : "mt-0 w-full border-b border-white/30 bg-[rgba(250,246,240,0.76)] backdrop-blur-xl"
+        }`}
       >
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-
-          {/* LOGO */}
-          <Link href="/" className="text-3xl font-[var(--font-heading)] text-[#5A0F1C] tracking-wide">
-            Lux&Glow
-          </Link>
-
-          {/* DESKTOP MENU */}
-          <div className="hidden md:flex items-center gap-10 text-gray-700 font-medium">
-            <Link href="/" className="hover:text-[#5A0F1C]">Home</Link>
-            <Link href="/shop" className="hover:text-[#5A0F1C]">Shop</Link>
-            <Link href="/about" className="hover:text-[#5A0F1C]">About</Link>
-            <Link href="/contact" className="hover:text-[#5A0F1C]">Contact</Link>
+        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-6 py-3">
+          <div className="hidden items-center gap-7 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#6C4E46] md:flex">
+            <Link href="/" className="transition hover:text-[#7D1111]">Home</Link>
+            <Link href="/shop" className="transition hover:text-[#7D1111]">Collections</Link>
+            <Link href="/shop?category=Festive" className="transition hover:text-[#7D1111]">Pujo Edit 2026</Link>
+            <Link href="/about" className="transition hover:text-[#7D1111]">About</Link>
           </div>
 
-          {/* RIGHT SIDE DESKTOP */}
-          <div className="hidden md:flex items-center gap-6">
+          <Link
+            href="/"
+            className="justify-self-start text-center text-[#5A0F1C] md:justify-self-center"
+          >
+            <span className="flex flex-col items-start md:items-center">
+              <span className="font-[var(--font-playfair)] text-2xl font-semibold uppercase leading-none tracking-[0.08em]">
+                Luxe & Glow
+              </span>
+              <span className="mt-1 text-[9px] uppercase tracking-[0.34em] text-[#8B6B62]">
+                Saree House
+              </span>
+            </span>
+          </Link>
 
-            {/* CART */}
-            <Link href="/cart" className="relative text-xl">
-              🛒
+          <div className="hidden items-center justify-end gap-4 md:flex">
+            <Link href="/saved" className="relative p-2 text-[#5A0F1C] transition hover:text-[#9B251C]">
+              <Heart className="h-4 w-4" />
+              {savedCount > 0 && (
+                <span className="absolute -right-3 -top-2 rounded-full bg-[#5A0F1C] px-2 py-0.5 text-xs text-white">
+                  {savedCount}
+                </span>
+              )}
+            </Link>
+
+            <Link href="/cart" className="relative p-2 text-[#5A0F1C] transition hover:text-[#9B251C]">
+              <ShoppingBag className="h-4 w-4" />
               {cartCount > 0 && (
-                <span className="absolute -top-2 -right-3 bg-[#5A0F1C] text-white text-xs px-2 py-0.5 rounded-full">
+                <span className="absolute -right-3 -top-2 rounded-full bg-[#5A0F1C] px-2 py-0.5 text-xs text-white">
                   {cartCount}
                 </span>
               )}
             </Link>
 
-            {/* PROFILE ICON */}
             {!user ? (
               <Link
                 href="/login"
-                className="px-5 py-2 rounded-full text-white 
-                bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37]"
+                className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#5A0F1C] transition hover:text-[#9B251C]"
               >
                 Login
               </Link>
             ) : (
-              <Link
-                href="/profile"
-                className="w-10 h-10 rounded-full bg-[#5A0F1C] text-white 
-                flex items-center justify-center text-lg font-bold hover:scale-110 transition"
-              >
-                👤
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/profile"
+                  className="flex h-8 w-8 items-center justify-center bg-[#5A0F1C] text-white transition hover:bg-[#9B251C]"
+                >
+                  <UserRound className="h-4 w-4" />
+                </Link>
+                <button
+                  onClick={logout}
+                  className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#5A0F1C] transition hover:text-[#8E2437]"
+                >
+                  Logout
+                </button>
+              </div>
             )}
           </div>
 
-          {/* MOBILE MENU BTN */}
           <button
-            className="md:hidden text-2xl"
-            onClick={() => setOpen(!open)}
+            className="justify-self-end bg-white/80 p-2 text-[#5A0F1C] shadow-sm md:hidden"
+            onClick={() => setOpen((value) => !value)}
+            aria-label="Toggle navigation menu"
           >
-            ☰
+            {open ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
           </button>
         </div>
 
-        {/* 📱 MOBILE MENU */}
         {open && (
-          <div className="md:hidden bg-white px-6 pb-6 pt-2 space-y-4 text-lg">
+          <div className="space-y-3 border-t border-[#EADBCF] bg-[rgba(255,250,245,0.98)] px-6 pb-6 pt-4 text-base text-[#5A0F1C] md:hidden">
+            <Link href="/" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Home</Link>
+            <Link href="/shop" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Shop</Link>
+            <Link href="/saved" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Saved</Link>
+            <Link href="/about" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">About</Link>
+            <Link href="/contact" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Contact</Link>
+            <Link href="/cart" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Cart</Link>
 
-            <Link href="/" onClick={()=>setOpen(false)} className="block">Home</Link>
-            <Link href="/shop" onClick={()=>setOpen(false)} className="block">Shop</Link>
-            <Link href="/about" onClick={()=>setOpen(false)} className="block">About</Link>
-            <Link href="/contact" onClick={()=>setOpen(false)} className="block">Contact</Link>
-            <Link href="/cart" onClick={()=>setOpen(false)} className="block">Cart</Link>
-
-            {/* ⭐ FIXED MOBILE AUTH */}
             {!user ? (
               <Link
                 href="/login"
-                onClick={()=>setOpen(false)}
-                className="block text-[#5A0F1C] font-semibold"
+                onClick={() => setOpen(false)}
+                className="block rounded-2xl bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37] px-4 py-3 font-semibold text-white"
               >
                 Login
               </Link>
@@ -127,14 +145,22 @@ export default function Navbar() {
               <>
                 <Link
                   href="/profile"
-                  onClick={()=>setOpen(false)}
-                  className="block text-[#5A0F1C] font-semibold"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-2xl bg-white px-4 py-3 font-semibold shadow-sm"
                 >
-                  My Profile 👤
+                  My Profile
                 </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    setOpen(false);
+                  }}
+                  className="block rounded-2xl bg-white px-4 py-3 text-left font-semibold shadow-sm"
+                >
+                  Logout
+                </button>
               </>
             )}
-
           </div>
         )}
       </nav>

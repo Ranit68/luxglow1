@@ -4,7 +4,7 @@ export default function TermsConditions() {
       <h1 className="text-4xl font-bold mb-6">Terms & Conditions</h1>
 
       <p>
-        By using Lux&Glow, you agree to comply with our terms and conditions.
+        By using Luxe&Glow, you agree to comply with our terms and conditions.
       </p>
 
       <ul className="list-disc ml-6 mt-4 space-y-2">
