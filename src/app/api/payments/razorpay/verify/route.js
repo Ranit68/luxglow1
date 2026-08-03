@@ -1,7 +1,7 @@
 import { getRazorpayCredentialsError, verifyRazorpaySignature } from "@/lib/razorpay";
-import { Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { createOrderWithStockReservation, StockError } from "@/lib/orderStock";
+import { getAdminDb } from "@/lib/firebaseAdmin";
+import { createOrderWithStockReservationAdmin } from "@/lib/orderStockAdmin";
+import { StockError } from "@/lib/orderStock";
 
 export const runtime = "nodejs";
 
@@ -52,7 +52,7 @@ export async function POST(req) {
       return Response.json({ verified: false, error: "Order reference is missing." }, { status: 400 });
     }
 
-    await createOrderWithStockReservation(db, orderRef, {
+    await createOrderWithStockReservationAdmin(getAdminDb(), orderRef, {
       orderRef,
       userId: userId || "",
       userEmail: userEmail || "",
@@ -65,7 +65,7 @@ export async function POST(req) {
       razorpayOrderId: orderId,
       razorpayPaymentId: paymentId,
       razorpaySignature: signature,
-      createdAt: Timestamp.now(),
+      createdAt: new Date().toISOString(),
     });
 
     return Response.json({
