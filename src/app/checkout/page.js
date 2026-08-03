@@ -14,10 +14,11 @@ import AuthPromptModal from "@/components/AuthPromptModal";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
+import { createOrderWithStockReservation } from "@/lib/orderStock";
 
 const PAYMENT_METHODS = {
   cod: "Cash on Delivery",
-  instamojo: "Instamojo",
+  razorpay: "Razorpay",
 };
 
 const createEmptyForm = () => ({
@@ -43,6 +44,27 @@ function createOrderRef() {
     .toUpperCase();
 }
 
+function loadRazorpayCheckoutScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("Your browser is not available for secure checkout."));
+      return;
+    }
+
+    if (window.Razorpay) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Unable to load Razorpay checkout at the moment."));
+    document.body.appendChild(script);
+  });
+}
+
 export default function CheckoutPage() {
   const { cart, clearCart } = useCart();
   const { user } = useAuth();
@@ -56,7 +78,7 @@ export default function CheckoutPage() {
   const [formSuccess, setFormSuccess] = useState("");
   const [orderError, setOrderError] = useState("");
   const [deliveryLookupError, setDeliveryLookupError] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [form, setForm] = useState(createEmptyForm());
 
   const total = cart?.reduce((acc, item) => acc + item.price * item.qty, 0) || 0;
@@ -168,11 +190,7 @@ export default function CheckoutPage() {
     }
 
     if (paymentMethod === "cod" && selectedAddress.codAvailable === false) {
-      return "Cash on Delivery is not available for this pincode. Please choose Instamojo.";
-    }
-
-    if (paymentMethod === "instamojo" && !user?.email) {
-      return "Your account needs an email address for Instamojo payment.";
+      return "Cash on Delivery is not available for this pincode. Please choose Razorpay or another address.";
     }
 
     return "";
@@ -181,7 +199,7 @@ export default function CheckoutPage() {
   const createCodOrder = async () => {
     const orderRef = createOrderRef();
 
-    await addDoc(collection(db, "orders"), {
+    await createOrderWithStockReservation(db, orderRef, {
       orderRef,
       userId: user.uid,
       userEmail: user.email || "",
@@ -198,7 +216,7 @@ export default function CheckoutPage() {
     router.push(`/checkout/status?status=success&orderRef=${orderRef}`);
   };
 
-  const startInstamojoPayment = async () => {
+  const startRazorpayPayment = async () => {
     const orderRef = createOrderRef();
     const draft = {
       orderRef,
@@ -207,40 +225,105 @@ export default function CheckoutPage() {
       address: selectedAddress,
       items: cart,
       total,
-      paymentMethod: PAYMENT_METHODS.instamojo,
+      paymentMethod: PAYMENT_METHODS.razorpay,
       createdAt: Date.now(),
     };
 
     localStorage.setItem(getDraftStorageKey(user.uid), JSON.stringify(draft));
 
-    const response = await fetch("/api/payments/instamojo/create", {
+    const response = await fetch("/api/payments/razorpay/create-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         amount: total,
-        buyerName: selectedAddress.name,
-        email: user.email,
-        phone: selectedAddress.phone,
+        currency: "INR",
         orderRef,
+        buyerName: selectedAddress.name,
+        email: user.email || "",
+        phone: selectedAddress.phone,
       }),
     });
 
     const data = await response.json();
 
-    if (!response.ok || !data.paymentUrl) {
-      throw new Error(data.error || "Could not start Instamojo payment.");
+    if (!response.ok || !data.orderId) {
+      throw new Error(data.error || "Could not initialize Razorpay checkout.");
     }
 
-    localStorage.setItem(
-      getDraftStorageKey(user.uid),
-      JSON.stringify({
-        ...draft,
-        paymentRequestId: data.paymentRequestId || "",
-        paymentUrl: data.paymentUrl,
-      })
-    );
+    await loadRazorpayCheckoutScript();
 
-    window.location.href = data.paymentUrl;
+    const options = {
+      key: data.key,
+      amount: data.amount,
+      currency: data.currency,
+      name: "Luxe&Glow",
+      description: `Order ${data.receipt}`,
+      order_id: data.orderId,
+      prefill: {
+        name: selectedAddress.name,
+        email: user.email || "",
+        contact: selectedAddress.phone,
+      },
+      theme: {
+        color: "#5A0F1C",
+      },
+      handler: async (paymentResponse) => {
+        try {
+          const verifyResponse = await fetch("/api/payments/razorpay/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+              expectedOrderRef: orderRef,
+              expectedAmount: total,
+              address: selectedAddress,
+              items: cart,
+              userId: user.uid,
+              userEmail: user.email || "",
+            }),
+          });
+
+          const verifyData = await verifyResponse.json().catch(() => null);
+
+          if (!verifyResponse.ok || !verifyData?.verified) {
+            localStorage.removeItem(getDraftStorageKey(user.uid));
+            router.replace(
+              `/checkout/status?status=failed&orderRef=${encodeURIComponent(orderRef)}&message=${encodeURIComponent(
+                verifyData?.error || "Payment verification failed."
+              )}`
+            );
+            return;
+          }
+
+          clearCart();
+          localStorage.removeItem(getDraftStorageKey(user.uid));
+          router.replace(
+            `/checkout/status?status=success&orderRef=${encodeURIComponent(orderRef)}&payment_id=${encodeURIComponent(
+              paymentResponse.razorpay_payment_id
+            )}`
+          );
+        } catch (error) {
+          localStorage.removeItem(getDraftStorageKey(user.uid));
+          router.replace(
+            `/checkout/status?status=failed&orderRef=${encodeURIComponent(orderRef)}&message=${encodeURIComponent(
+              error instanceof Error ? error.message : "Could not finish payment confirmation."
+            )}`
+          );
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          setLoading(false);
+          setOrderError("Payment was cancelled. You can try again.");
+        },
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
+    setLoading(false);
   };
 
   const placeOrder = async () => {
@@ -260,9 +343,13 @@ export default function CheckoutPage() {
         return;
       }
 
-      await startInstamojoPayment();
-    } catch {
-      setOrderError("Failed to continue checkout. Please try again.");
+      await startRazorpayPayment();
+    } catch (error) {
+      setOrderError(
+        error instanceof Error
+          ? error.message
+          : "Failed to continue checkout. Please try again."
+      );
       setLoading(false);
     }
   };
@@ -309,218 +396,214 @@ export default function CheckoutPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#F8F6F3] to-white px-4 pt-24 md:px-8">
-      <div className="mx-auto grid max-w-7xl gap-10 py-12 lg:grid-cols-3">
-        <div className="space-y-10 lg:col-span-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#8E2437]">
-              Authenticated Checkout
-            </p>
-            <h1 className="mt-3 text-3xl font-bold text-[#3E0E18] md:text-4xl">
-              Secure Checkout
-            </h1>
-            <p className="mt-3 text-sm text-[#6B4A42]">
-              Name, phone, and delivery address will be saved for order confirmation and Delhivery shipment processing.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border bg-white p-8 shadow-lg">
-            <h2 className="mb-6 text-xl font-semibold text-[#5A0F1C]">Delivery Address</h2>
-
-            <div className="space-y-4">
-              {addresses.map((addr) => {
-                const isSelected = selectedAddress?.id === addr.id;
-
-                return (
-                  <div
-                    key={addr.id}
-                    onClick={() => setSelectedAddress(addr)}
-                    className={`cursor-pointer rounded-2xl border p-5 transition ${
-                      isSelected
-                        ? "border-[#5A0F1C] bg-[#5A0F1C]/5 shadow-md"
-                        : "border-gray-200 hover:border-[#5A0F1C]/40"
-                    }`}
-                  >
-                    <div className="flex justify-between gap-4">
-                      <div>
-                        <p className="font-semibold">{addr.name}</p>
-                        <p className="mt-1 text-sm text-gray-600">
-                          {addr.line1}
-                          {addr.line2 ? `, ${addr.line2}` : ""}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {addr.city}, {addr.district}
-                          {addr.state ? `, ${addr.state}` : ""} - {addr.pincode}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-500">Phone: {addr.phone}</p>
-                        {addr.codAvailable === false && (
-                          <p className="mt-2 text-xs font-medium text-amber-700">
-                            COD is not available for this pincode.
-                          </p>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          deleteAddress(addr.id);
-                        }}
-                        className="text-red-500"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-10 border-t pt-8">
-              <h3 className="mb-4 text-lg font-semibold">Add New Address</h3>
-
-              {(formError || formSuccess || deliveryLookupError) && (
-                <div className="mb-4 space-y-2 text-sm">
-                  {formError && <p className="text-red-600">{formError}</p>}
-                  {deliveryLookupError && <p className="text-red-600">{deliveryLookupError}</p>}
-                  {formSuccess && <p className="text-green-600">{formSuccess}</p>}
-                </div>
-              )}
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <input
-                  placeholder="Full Name"
-                  className="input-modern"
-                  value={form.name}
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
-                />
-                <input
-                  placeholder="Phone"
-                  className="input-modern"
-                  value={form.phone}
-                  onChange={(event) => setForm({ ...form, phone: event.target.value })}
-                />
-                <input
-                  placeholder="Address Line 1"
-                  className="input-modern md:col-span-2"
-                  value={form.line1}
-                  onChange={(event) => setForm({ ...form, line1: event.target.value })}
-                />
-                <input
-                  placeholder="Address Line 2"
-                  className="input-modern md:col-span-2"
-                  value={form.line2}
-                  onChange={(event) => setForm({ ...form, line2: event.target.value })}
-                />
-                <input
-                  placeholder="Pincode"
-                  className="input-modern"
-                  value={form.pincode}
-                  onChange={(event) => {
-                    setForm({ ...form, pincode: event.target.value });
-                    fetchLocation(event.target.value);
-                  }}
-                />
-                <input value={form.city} disabled placeholder="City" className="input-modern bg-gray-100" />
-                <input
-                  value={form.district}
-                  disabled
-                  placeholder="District"
-                  className="input-modern bg-gray-100"
-                />
-                <input value={form.state} disabled placeholder="State" className="input-modern bg-gray-100" />
-              </div>
-
-              <button
-                onClick={saveAddress}
-                disabled={addressSaving}
-                className="mt-6 rounded-full bg-[#5A0F1C] px-8 py-3 text-white transition hover:opacity-90 disabled:opacity-60"
-              >
-                {addressSaving ? "Saving Address..." : "Save Address"}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="h-fit rounded-3xl border bg-white p-8 shadow-xl lg:sticky lg:top-28">
-          <h2 className="mb-6 text-2xl font-semibold">Order Summary</h2>
-          <div className="space-y-3">
-            {cart.map((item) => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span>
-                  {item.name} x {item.qty}
-                </span>
-                <span>Rs. {item.price * item.qty}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="my-6 border-t" />
-
-          <div className="rounded-2xl bg-[#F8F6F3] px-4 py-4 text-sm text-[#5A0F1C]">
-            <p className="font-medium">Choose Payment Method</p>
-            <div className="mt-4 grid gap-3">
-              <button
-                onClick={() => setPaymentMethod("cod")}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${
-                  paymentMethod === "cod"
-                    ? "border-[#5A0F1C] bg-white shadow-sm"
-                    : "border-transparent bg-white/60"
-                }`}
-              >
-                <p className="font-semibold">{PAYMENT_METHODS.cod}</p>
-                <p className="mt-1 text-xs text-gray-600">
-                  Order is created immediately with payment pending for delivery.
-                </p>
-              </button>
-
-              <button
-                onClick={() => setPaymentMethod("instamojo")}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${
-                  paymentMethod === "instamojo"
-                    ? "border-[#5A0F1C] bg-white shadow-sm"
-                    : "border-transparent bg-white/60"
-                }`}
-              >
-                <p className="font-semibold">{PAYMENT_METHODS.instamojo}</p>
-                <p className="mt-1 text-xs text-gray-600">
-                  Order is created only after Instamojo confirms successful payment.
-                </p>
-              </button>
-            </div>
-            {paymentMethod === "instamojo" && (
-              <p className="mt-4 text-xs text-gray-600">
-                Instamojo will use your account email
-                {user.email ? `: ${user.email}` : "."}
+    <>
+      <main className="min-h-screen bg-gradient-to-b from-[#F8F6F3] to-white px-4 pt-24 md:px-8">
+        <div className="mx-auto grid max-w-7xl gap-10 py-12 lg:grid-cols-3">
+          <div className="space-y-10 lg:col-span-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#8E2437]">
+                Authenticated Checkout
               </p>
-            )}
+              <h1 className="mt-3 text-3xl font-bold text-[#3E0E18] md:text-4xl">
+                Secure Checkout
+              </h1>
+              <p className="mt-3 text-sm text-[#6B4A42]">
+                Name, phone, and delivery address will be saved for order confirmation and Delhivery shipment processing.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border bg-white p-8 shadow-lg">
+              <h2 className="mb-6 text-xl font-semibold text-[#5A0F1C]">Delivery Address</h2>
+
+              <div className="space-y-4">
+                {addresses.map((addr) => {
+                  const isSelected = selectedAddress?.id === addr.id;
+
+                  return (
+                    <div
+                      key={addr.id}
+                      onClick={() => setSelectedAddress(addr)}
+                      className={`cursor-pointer rounded-2xl border p-5 transition ${
+                        isSelected
+                          ? "border-[#5A0F1C] bg-[#5A0F1C]/5 shadow-md"
+                          : "border-gray-200 hover:border-[#5A0F1C]/40"
+                      }`}
+                    >
+                      <div className="flex justify-between gap-4">
+                        <div>
+                          <p className="font-semibold">{addr.name}</p>
+                          <p className="mt-1 text-sm text-gray-600">
+                            {addr.line1}
+                            {addr.line2 ? `, ${addr.line2}` : ""}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {addr.city}, {addr.district}
+                            {addr.state ? `, ${addr.state}` : ""} - {addr.pincode}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500">Phone: {addr.phone}</p>
+                          {addr.codAvailable === false && (
+                            <p className="mt-2 text-xs font-medium text-amber-700">
+                              COD is not available for this pincode.
+                            </p>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteAddress(addr.id);
+                          }}
+                          className="text-red-500"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-10 border-t pt-8">
+                <h3 className="mb-4 text-lg font-semibold">Add New Address</h3>
+
+                {(formError || formSuccess || deliveryLookupError) && (
+                  <div className="mb-4 space-y-2 text-sm">
+                    {formError && <p className="text-red-600">{formError}</p>}
+                    {deliveryLookupError && <p className="text-red-600">{deliveryLookupError}</p>}
+                    {formSuccess && <p className="text-green-600">{formSuccess}</p>}
+                  </div>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input
+                    placeholder="Full Name"
+                    className="input-modern"
+                    value={form.name}
+                    onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  />
+                  <input
+                    placeholder="Phone"
+                    className="input-modern"
+                    value={form.phone}
+                    onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                  />
+                  <input
+                    placeholder="Address Line 1"
+                    className="input-modern md:col-span-2"
+                    value={form.line1}
+                    onChange={(event) => setForm({ ...form, line1: event.target.value })}
+                  />
+                  <input
+                    placeholder="Address Line 2"
+                    className="input-modern md:col-span-2"
+                    value={form.line2}
+                    onChange={(event) => setForm({ ...form, line2: event.target.value })}
+                  />
+                  <input
+                    placeholder="Pincode"
+                    className="input-modern"
+                    value={form.pincode}
+                    onChange={(event) => {
+                      setForm({ ...form, pincode: event.target.value });
+                      fetchLocation(event.target.value);
+                    }}
+                  />
+                  <input value={form.city} disabled placeholder="City" className="input-modern bg-gray-100" />
+                  <input
+                    value={form.district}
+                    disabled
+                    placeholder="District"
+                    className="input-modern bg-gray-100"
+                  />
+                  <input value={form.state} disabled placeholder="State" className="input-modern bg-gray-100" />
+                </div>
+
+                <button
+                  onClick={saveAddress}
+                  disabled={addressSaving}
+                  className="mt-6 rounded-full bg-[#5A0F1C] px-8 py-3 text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {addressSaving ? "Saving Address..." : "Save Address"}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-6 flex justify-between text-lg font-medium">
-            <span>Total</span>
-            <span className="font-bold text-[#5A0F1C]">Rs. {total}</span>
+          <div className="h-fit rounded-3xl border bg-white p-8 shadow-xl lg:sticky lg:top-28">
+            <h2 className="mb-6 text-2xl font-semibold">Order Summary</h2>
+            <div className="space-y-3">
+              {cart.map((item) => (
+                <div key={item.id} className="flex justify-between text-sm">
+                  <span>
+                    {item.name} x {item.qty}
+                  </span>
+                  <span>Rs. {item.price * item.qty}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="my-6 border-t" />
+
+            <div className="rounded-2xl bg-[#F8F6F3] px-4 py-4 text-sm text-[#5A0F1C]">
+              <p className="font-medium">Choose Payment Method</p>
+              <div className="mt-4 grid gap-3">
+                <button
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`rounded-2xl border px-4 py-3 text-left transition ${
+                    paymentMethod === "cod"
+                      ? "border-[#5A0F1C] bg-white shadow-sm"
+                      : "border-transparent bg-white/60"
+                  }`}
+                >
+                  <p className="font-semibold">{PAYMENT_METHODS.cod}</p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    Order is created immediately with payment pending for delivery.
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setPaymentMethod("razorpay")}
+                  className={`rounded-2xl border px-4 py-3 text-left transition ${
+                    paymentMethod === "razorpay"
+                      ? "border-[#5A0F1C] bg-white shadow-sm"
+                      : "border-transparent bg-white/60"
+                  }`}
+                >
+                  <p className="font-semibold">{PAYMENT_METHODS.razorpay}</p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    Pay securely with cards, UPI, wallets, and net banking via Razorpay.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between text-lg font-medium">
+              <span>Total</span>
+              <span className="font-bold text-[#5A0F1C]">Rs. {total}</span>
+            </div>
+
+            {orderError && <p className="mt-4 text-sm text-red-600">{orderError}</p>}
+
+            <button
+              onClick={placeOrder}
+              disabled={loading}
+              className="mt-8 w-full rounded-full bg-[#5A0F1C] py-4 font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
+            >
+              {loading
+                ? paymentMethod === "razorpay"
+                  ? "Preparing secure payment..."
+                  : "Placing COD Order..."
+                : paymentMethod === "razorpay"
+                  ? "Pay with Razorpay"
+                  : "Place COD Order"}
+            </button>
+
+            <p className="mt-6 text-center text-xs text-gray-500">
+              Secure checkout with account-linked address, payment verification, and order history.
+            </p>
           </div>
-
-          {orderError && <p className="mt-4 text-sm text-red-600">{orderError}</p>}
-
-          <button
-            onClick={placeOrder}
-            disabled={loading}
-            className="mt-8 w-full rounded-full bg-[#5A0F1C] py-4 font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
-          >
-            {loading
-              ? paymentMethod === "instamojo"
-                ? "Redirecting to Instamojo..."
-                : "Placing COD Order..."
-              : paymentMethod === "instamojo"
-                ? "Pay with Instamojo"
-                : "Place COD Order"}
-          </button>
-
-          <p className="mt-6 text-center text-xs text-gray-500">
-            Secure checkout with account-linked address, payment verification, and order history.
-          </p>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

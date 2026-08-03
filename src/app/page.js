@@ -1,22 +1,12 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import { PujoCountdown } from "@/components/DurgaPujoExperience";
 import { absoluteUrl, siteConfig } from "@/lib/seo";
-
-export const metadata = {
-  title: "Luxe&Glow Pujo Edit 2026 - Designer Sarees Online",
-  description:
-    "Explore the Luxe&Glow Durga Pujo saree edit with festive silk, organza, cotton, and celebration-ready drapes for 2026.",
-  keywords: [
-    "Durga Pujo sarees",
-    "Durga Puja saree collection",
-    "festive sarees online",
-    "designer sarees India",
-    "silk sarees online",
-    "Luxe&Glow sarees",
-  ],
-};
 
 const dayEdits = [
   {
@@ -77,6 +67,25 @@ const trustPoints = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const hasRazorpayParams =
+      searchParams.get("razorpay_payment_id") &&
+      searchParams.get("razorpay_order_id") &&
+      searchParams.get("razorpay_signature");
+
+    if (hasRazorpayParams) {
+      const queryString = window.location.search;
+      const targetUrl = `/checkout/status${queryString}`;
+
+      if (window.location.pathname !== "/checkout/status") {
+        window.location.replace(targetUrl);
+      }
+    }
+  }, [searchParams]);
+
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",

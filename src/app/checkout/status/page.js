@@ -2,15 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  addDoc,
-  collection,
-  getDocs,
-  limit,
-  query,
-  Timestamp,
-  where,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
@@ -28,7 +20,7 @@ const statusContent = {
     eyebrow: "Payment Failed",
     title: "We could not confirm your payment",
     description:
-      "No paid order is created unless Instamojo confirms the payment. You can return to shopping and try again.",
+      "No paid order is created unless the payment provider confirms the payment. You can return to shopping and try again.",
     panelClass: "border-rose-200 bg-rose-50 text-rose-900",
   },
   pending: {
@@ -49,21 +41,42 @@ export default function CheckoutStatusPage() {
   const { clearCart } = useCart();
   const searchParams = useSearchParams();
   const statusParam = searchParams.get("status");
+  const queryMessage = searchParams.get("message") || "";
+  const queryOrderRef = searchParams.get("orderRef") || "";
   const [statusKey, setStatusKey] = useState(
-    statusContent[statusParam] ? statusParam : "pending"
+    statusParam === "success" || statusParam === "failed" ? statusParam : "pending"
   );
-  const [message, setMessage] = useState("");
-  const [createdOrderRef, setCreatedOrderRef] = useState(
-    searchParams.get("orderRef") || ""
-  );
+  const [message, setMessage] = useState(queryMessage);
+  const [createdOrderRef, setCreatedOrderRef] = useState(queryOrderRef);
+  const [callbackDebug, setCallbackDebug] = useState({});
   const paymentRequestId = searchParams.get("payment_request_id");
   const paymentId = searchParams.get("payment_id");
   const paymentStatus = searchParams.get("payment_status");
+  const razorpayOrderId = searchParams.get("razorpay_order_id");
+  const razorpayPaymentId = searchParams.get("razorpay_payment_id");
+  const razorpaySignature = searchParams.get("razorpay_signature");
   const hasFinalizedPayment = useRef(false);
 
   useEffect(() => {
-    const finalizeInstamojoOrder = async () => {
-      if (!paymentRequestId || !paymentId) {
+    if (statusParam === "success" || statusParam === "failed") {
+      setStatusKey(statusParam);
+      setMessage(queryMessage || (statusParam === "success" ? "Your order is confirmed." : "Your payment could not be confirmed."));
+      setCreatedOrderRef(queryOrderRef || "");
+      if (statusParam === "success") {
+        clearCart();
+        if (user?.uid) {
+          localStorage.removeItem(getDraftStorageKey(user.uid));
+        }
+      }
+      return;
+    }
+
+    const finalizeOnlineOrder = async () => {
+      const isRazorpayCallback = Boolean(
+        razorpayOrderId && razorpayPaymentId && razorpaySignature
+      );
+
+      if (!isRazorpayCallback) {
         return;
       }
 
@@ -72,6 +85,13 @@ export default function CheckoutStatusPage() {
       }
 
       hasFinalizedPayment.current = true;
+      setCallbackDebug({
+        paymentId,
+        paymentStatus,
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+      });
 
       if (!user) {
         setStatusKey("failed");
@@ -83,49 +103,43 @@ export default function CheckoutStatusPage() {
 
       if (!rawDraft) {
         setStatusKey("failed");
-        setMessage("Payment was received, but the checkout draft is missing on this device.");
+        setMessage(
+          "Payment was received, but the checkout draft is missing on this device. Please retry checkout in the same browser tab and avoid clearing storage."
+        );
         return;
       }
 
       const draft = JSON.parse(rawDraft);
 
-      if (paymentStatus && paymentStatus !== "Credit") {
-        setStatusKey("failed");
-        setMessage("Instamojo reported that this payment was not successful.");
-        return;
-      }
-
-      const verifyResponse = await fetch("/api/payments/instamojo/verify", {
+      const verifyResponse = await fetch("/api/payments/razorpay/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentRequestId,
-          paymentId,
-          expectedAmount: draft.total,
+          razorpay_order_id: razorpayOrderId,
+          razorpay_payment_id: razorpayPaymentId,
+          razorpay_signature: razorpaySignature,
           expectedOrderRef: draft.orderRef,
-          expectedEmail: draft.userEmail,
-          expectedPhone: draft.address?.phone,
+          expectedAmount: draft.total,
+          address: draft.address,
+          items: draft.items,
+          userId: user.uid,
+          userEmail: draft.userEmail || "",
         }),
       });
 
-      const verifyData = await verifyResponse.json();
+      const verifyData = await verifyResponse.json().catch(() => null);
 
-      if (!verifyResponse.ok || !verifyData.verified) {
+      if (!verifyResponse.ok || !verifyData?.verified) {
         setStatusKey("failed");
-        setMessage(verifyData.error || "Payment verification failed.");
+        setMessage(verifyData?.error || `Razorpay payment verification failed (${verifyResponse.status}).`);
         return;
       }
 
-      const existingOrderQuery = query(
-        collection(db, "orders"),
-        where("paymentRequestId", "==", paymentRequestId),
-        limit(1)
-      );
-      const existingOrderSnapshot = await getDocs(existingOrderQuery);
+      const orderDocRef = doc(db, "orders", draft.orderRef);
+      const existingOrderSnapshot = await getDoc(orderDocRef);
 
-      if (!existingOrderSnapshot.empty) {
-        const existingOrder = existingOrderSnapshot.docs[0].data();
-        setCreatedOrderRef(existingOrder.orderRef || draft.orderRef || "");
+      if (existingOrderSnapshot.exists()) {
+        setCreatedOrderRef(existingOrderSnapshot.data().orderRef || draft.orderRef || "");
         setStatusKey("success");
         setMessage("Your order was already confirmed.");
         clearCart();
@@ -133,7 +147,7 @@ export default function CheckoutStatusPage() {
         return;
       }
 
-      await addDoc(collection(db, "orders"), {
+      await setDoc(orderDocRef, {
         orderRef: draft.orderRef,
         userId: user.uid,
         userEmail: draft.userEmail || "",
@@ -141,25 +155,42 @@ export default function CheckoutStatusPage() {
         items: draft.items,
         total: draft.total,
         status: "Confirmed",
-        paymentMethod: "Instamojo",
+        paymentMethod: "Razorpay",
         paymentStatus: "Paid",
-        paymentId,
-        paymentRequestId,
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
         createdAt: Timestamp.now(),
       });
 
       setCreatedOrderRef(draft.orderRef || "");
       setStatusKey("success");
-      setMessage("Your order has been confirmed and recorded successfully.");
+      setMessage("Your Razorpay payment has been verified and your order is confirmed.");
       clearCart();
       localStorage.removeItem(getDraftStorageKey(user.uid));
     };
 
-    finalizeInstamojoOrder().catch(() => {
+    finalizeOnlineOrder().catch((error) => {
+      console.error("Checkout payment confirmation failed", error);
       setStatusKey("failed");
-      setMessage("We could not finish payment confirmation. Please contact support if money was debited.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "We could not finish payment confirmation. Please contact support if money was debited."
+      );
     });
-  }, [clearCart, paymentId, paymentRequestId, paymentStatus, user]);
+  }, [
+    clearCart,
+    paymentId,
+    paymentStatus,
+    queryMessage,
+    queryOrderRef,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+    statusParam,
+    user,
+  ]);
 
   const content = statusContent[statusKey] || statusContent.pending;
 
@@ -177,7 +208,17 @@ export default function CheckoutStatusPage() {
           {createdOrderRef && <p className="mt-2">Order Ref: {createdOrderRef}</p>}
           {paymentRequestId && <p className="mt-2">Payment Request ID: {paymentRequestId}</p>}
           {paymentId && <p className="mt-2">Payment ID: {paymentId}</p>}
+          {razorpayOrderId && <p className="mt-2">Razorpay Order ID: {razorpayOrderId}</p>}
+          {razorpayPaymentId && <p className="mt-2">Razorpay Payment ID: {razorpayPaymentId}</p>}
           {message && <p className="mt-2">{message}</p>}
+          {statusKey === "failed" && callbackDebug && (
+            <div className="mt-4 rounded-2xl border border-[#EEE] bg-[#FAFAFA] p-4 text-xs text-slate-700">
+              <p className="font-semibold">Callback debug data</p>
+              <pre className="whitespace-pre-wrap break-words">
+                {JSON.stringify(callbackDebug, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 flex flex-wrap gap-4">
