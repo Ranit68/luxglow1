@@ -1,4 +1,4 @@
-import admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 import { StockError } from "@/lib/orderStock";
 
 function normalizeCartItems(items) {
@@ -75,7 +75,7 @@ export async function createOrderWithStockReservationAdmin(db, orderRef, orderPa
       items,
       stockReserved: true,
       stockReleased: false,
-      createdAt: admin.firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
     });
   });
 }

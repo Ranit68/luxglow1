@@ -1,5 +1,5 @@
-﻿import admin from "firebase-admin";
-import { getApps, getApp } from "firebase-admin/app";
+﻿import { cert, getApps, getApp, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 function getAdminCredentials() {
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -22,8 +22,8 @@ function getFirebaseAdminApp() {
 
   const { projectId, clientEmail, privateKey } = getAdminCredentials();
 
-  return admin.initializeApp({
-    credential: admin.credential.cert({
+  return initializeApp({
+    credential: cert({
       projectId,
       clientEmail,
       privateKey,
@@ -33,5 +33,5 @@ function getFirebaseAdminApp() {
 
 export function getAdminDb() {
   const app = getFirebaseAdminApp();
-  return app.firestore();
+  return getFirestore(app);
 }
