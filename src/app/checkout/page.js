@@ -1,20 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  Timestamp,
-} from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import AuthPromptModal from "@/components/AuthPromptModal";
+import CouponPanel from "@/components/CouponPanel";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-import { createOrderWithStockReservation } from "@/lib/orderStock";
 
 const PAYMENT_METHODS = {
   cod: "Cash on Delivery",
@@ -80,8 +73,16 @@ export default function CheckoutPage() {
   const [deliveryLookupError, setDeliveryLookupError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [form, setForm] = useState(createEmptyForm());
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
 
-  const total = cart?.reduce((acc, item) => acc + item.price * item.qty, 0) || 0;
+  const subtotal = cart?.reduce((acc, item) => acc + item.price * item.qty, 0) || 0;
+  const shippingCharge = 0;
+  const discountAmount = appliedCoupon
+    ? appliedCoupon.discountType === "fixed"
+      ? Math.min(appliedCoupon.computedDiscount || 0, subtotal)
+      : appliedCoupon.computedDiscount || 0
+    : 0;
+  const total = Math.max(0, subtotal - discountAmount + shippingCharge);
 
   useEffect(() => {
     if (!user) return;
@@ -199,18 +200,26 @@ export default function CheckoutPage() {
   const createCodOrder = async () => {
     const orderRef = createOrderRef();
 
-    await createOrderWithStockReservation(db, orderRef, {
-      orderRef,
-      userId: user.uid,
-      userEmail: user.email || "",
-      address: selectedAddress,
-      items: cart,
-      total,
-      status: "Pending",
-      paymentMethod: PAYMENT_METHODS.cod,
-      paymentStatus: "Pending",
-      createdAt: Timestamp.now(),
+    const response = await fetch("/api/orders/cod", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderRef,
+        userId: user.uid,
+        userEmail: user.email || "",
+        address: selectedAddress,
+        items: cart,
+        total,
+        paymentMethod: PAYMENT_METHODS.cod,
+        paymentStatus: "Pending",
+      }),
     });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Could not place your COD order.");
+    }
 
     clearCart();
     router.push(`/checkout/status?status=success&orderRef=${orderRef}`);
@@ -544,7 +553,9 @@ export default function CheckoutPage() {
 
             <div className="my-6 border-t" />
 
-            <div className="rounded-2xl bg-[#F8F6F3] px-4 py-4 text-sm text-[#5A0F1C]">
+            <CouponPanel subtotal={subtotal} onCouponChange={setAppliedCoupon} />
+
+            <div className="mt-4 rounded-2xl bg-[#F8F6F3] px-4 py-4 text-sm text-[#5A0F1C]">
               <p className="font-medium">Choose Payment Method</p>
               <div className="mt-4 grid gap-3">
                 <button
@@ -574,6 +585,23 @@ export default function CheckoutPage() {
                     Pay securely with cards, UPI, wallets, and net banking via Razorpay.
                   </p>
                 </button>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3 text-sm text-[#5B4038]">
+              <div className="flex justify-between">
+                <span>MRP</span>
+                <span>Rs. {subtotal}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Discount</span>
+                <span className="text-emerald-600">- Rs. {discountAmount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span className={shippingCharge === 0 ? "text-emerald-600" : ""}>
+                  {shippingCharge === 0 ? "Free" : `Rs. ${shippingCharge}`}
+                </span>
               </div>
             </div>
 

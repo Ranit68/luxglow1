@@ -9,20 +9,57 @@
   --font-heading: var(--font-playfair);
   --font-body: var(--font-poppins);
 }
-.footer-link {
-  @apply block hover:text-[#D4AF37] transition duration-200;
+
+html {
+  scroll-behavior: smooth;
 }
 
-.social-icon {
-  @apply w-10 h-10 rounded-full bg-[#1A1A1A]
-  flex items-center justify-center
-  hover:bg-[#D4AF37] hover:text-black
-  transition;
+* {
+  box-sizing: border-box;
 }
-/* Apply default font */
+
 body {
   font-family: var(--font-body);
   background: var(--color-cream);
+  color: #4A241E;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(90, 15, 28, 0.18);
+  color: #2b0d11;
+}
+
+.page-shell {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+.section-shell {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+.footer-link {
+  @apply block transition duration-200 hover:text-[#D4AF37];
+}
+
+.social-icon {
+  @apply flex h-10 w-10 items-center justify-center rounded-full bg-[#1A1A1A] transition hover:bg-[#D4AF37] hover:text-black;
 }
 
 .pujo-alpona {

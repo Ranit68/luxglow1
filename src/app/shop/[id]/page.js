@@ -11,6 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useSavedProducts } from "@/context/SavedProductsContext";
 import { useParams, useRouter } from "next/navigation";
+import ExpandableText from "@/components/ExpandableText";
 
 export default function ProductDetails() {
   const { cart, addToCart, buyNow } = useCart();
@@ -338,14 +339,18 @@ export default function ProductDetails() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="rounded-[2rem] bg-white p-7 shadow-[0_18px_45px_rgba(62,25,18,0.08)]">
+                <div className="rounded-[2rem] bg-white p-7 shadow-[0_18px_45px_rgba(62,25,18,0.08)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#8E2437]">
                   Product Story
                 </p>
                 <h2 className="mt-3 text-2xl font-semibold text-[#4E1320]">
                   Crafted to stand out with a graceful finish
                 </h2>
-                <p className="mt-4 text-sm leading-7 text-[#5B4038]">{product.description}</p>
+                <ExpandableText
+                  text={product.description}
+                  maxChars={320}
+                  className="mt-4 text-sm leading-7 text-[#5B4038]"
+                />
               </div>
 
               <div className="rounded-[2rem] bg-[#1C1311] p-7 text-white shadow-[0_18px_45px_rgba(28,19,17,0.24)]">

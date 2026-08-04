@@ -3,9 +3,9 @@ import { Facebook, Instagram, Mail, Phone } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="mt-24 overflow-hidden bg-[#1A1110] text-gray-300">
-      <div className="mx-auto grid max-w-7xl gap-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
+    <footer className="mt-16 overflow-hidden bg-[#1A1110] text-gray-300 sm:mt-20 lg:mt-24">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 sm:py-16 lg:grid-cols-4 lg:gap-12 lg:px-8">
+        <div className="text-center sm:text-left">
           <div className="inline-flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#5A0F1C] via-[#8E2437] to-[#D4AF37] text-sm font-semibold uppercase tracking-[0.2em] text-white">
               L&G

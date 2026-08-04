@@ -101,16 +101,28 @@ export default function HomeClient() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <section className="relative min-h-[100svh] overflow-hidden bg-[#3A1F19] md:min-h-screen">
+      <section className="relative min-h-[78svh] overflow-hidden bg-[linear-gradient(120deg,#2D0C08_0%,#5B1518_45%,#A85821_100%)] md:min-h-screen">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,244,226,0.22),transparent_38%),linear-gradient(135deg,rgba(255,244,226,0.16),transparent_55%)] md:hidden" />
+        {/* Small-screen hero image: use the provided image which already contains text. Hide overlay text on small screens. */}
+        <Image
+          src="https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2Fsmallscreen.png?alt=media&token=d3e51921-7c33-456b-8b9e-c5811eb456bc"
+          alt="Luxe&Glow Pujo mobile hero"
+          fill
+          priority
+          sizes="100vw"
+          className="block object-cover object-center md:hidden"
+        />
+        {/* Desktop / larger screens use the full banner */}
         <Image
           src="https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/pujo_banner.png?alt=media&token=02bea73e-1122-46ba-ae33-3dc364c52899"
           alt="Luxe&Glow Durga Puja festive saree collection"
           fill
           priority
           sizes="100vw"
-          className="object-cover object-[68%_center] sm:object-[62%_center] lg:object-center"
+          className="hidden object-cover object-center md:block"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(44,13,8,0.22),rgba(44,13,8,0.08)_42%,rgba(44,13,8,0.46)),linear-gradient(90deg,rgba(255,244,226,0.72),rgba(255,244,226,0.34)_42%,rgba(44,13,8,0.08)_72%)] md:bg-[#2C0D08]/10" />
+        {/* Gradient overlay only on md+; keep transparent on small screens so mobile hero image text stays visible */}
+        <div className="absolute inset-0 md:bg-[linear-gradient(180deg,rgba(44,13,8,0.18),rgba(44,13,8,0.08)_42%,rgba(44,13,8,0.42)),linear-gradient(90deg,rgba(255,244,226,0.72),rgba(255,244,226,0.34)_42%,rgba(44,13,8,0.08)_72%)] md:bg-[#2C0D08]/10" />
         <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" aria-hidden="true">
           <span className="dhup-smoke dhup-smoke-one" />
           <span className="dhup-smoke dhup-smoke-two" />
@@ -121,7 +133,8 @@ export default function HomeClient() {
           <span className="shiuli-flower shiuli-flower-four" />
         </div>
 
-        <div className="relative z-10 min-h-[100svh] md:min-h-screen">
+        {/* Hide the textual overlay on small screens because the mobile hero image already contains text. */}
+        <div className="relative z-10 hidden md:flex min-h-[78svh] items-center md:min-h-screen">
           <Link
             href="/shop?category=Festive"
             aria-label="Shop Pujo collection"
@@ -133,14 +146,14 @@ export default function HomeClient() {
             className="absolute left-[29%] top-[73.6%] hidden h-[6.4%] w-[15.1%] md:block"
           />
 
-          <div className="flex min-h-[100svh] max-w-[78vw] flex-col justify-center px-5 pb-24 pt-28 text-[#5A120F] sm:max-w-[30rem] sm:px-8 md:hidden">
+          <div className="mx-4 flex w-full max-w-[95vw] flex-col justify-center rounded-[1.75rem] border border-white/25 bg-[#FFF8EC]/86 px-5 py-8 shadow-[0_20px_60px_rgba(20,7,6,0.24)] backdrop-blur-sm sm:mx-0 sm:max-w-[30rem] sm:px-8 sm:py-10 sm:rounded-[2rem] md:mx-0 md:max-w-[34rem] md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none lg:max-w-[34rem]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#8A5A18]">
               Luxe&Glow Pujo Edit
             </p>
             <h1 className="mt-4 font-[var(--font-playfair)] text-4xl font-semibold leading-[0.98] text-[#6F100E] min-[390px]:text-5xl">
               Celebrate Durga Puja
             </h1>
-            <p className="mt-4 max-w-xs text-sm leading-6 text-[#4C342B]">
+            <p className="mt-4 max-w-xs text-sm leading-6 text-[#4C342B] md:max-w-sm">
               Festive sarees inspired by Bengal's rituals, warm lights, and timeless elegance.
             </p>
 
@@ -153,7 +166,7 @@ export default function HomeClient() {
               </Link>
               <Link
                 href="/shop"
-                className="inline-flex justify-center border border-[#9B6B31] bg-[#FFF8EC]/72 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7A3F16]"
+                className="inline-flex justify-center border border-[#9B6B31] bg-[#FFF8EC]/84 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7A3F16]"
               >
                 Explore Looks
               </Link>
@@ -162,7 +175,7 @@ export default function HomeClient() {
         </div>
       </section>
 
-      <section className="px-6 py-24 text-center">
+      <section className="px-4 py-16 text-center sm:px-6 sm:py-24">
         <div className="mx-auto max-w-3xl">
           <div className="mx-auto flex h-16 w-16 items-center justify-center border border-[#D8B26B] bg-[#FFFDF8] text-[#9A731F]">
             <Sparkles className="h-6 w-6" />
@@ -182,8 +195,8 @@ export default function HomeClient() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <div className="mb-10 flex items-end justify-between gap-6">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mb-10 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#9B251C]">
               Curated for the days
@@ -200,7 +213,7 @@ export default function HomeClient() {
           </Link>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.75fr_0.75fr]">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-[1.2fr_0.75fr_0.75fr]">
           {dayEdits.map((item, index) => {
             const spanClass = item.red
               ? "border border-rose-200 bg-rose-50 text-[#5D131F]"
@@ -228,11 +241,11 @@ export default function HomeClient() {
         </div>
       </section>
 
-      <section className="border-t border-[#E7D4BB] px-6 pb-24 pt-20">
+      <section className="border-t border-[#E7D4BB] px-4 pb-16 pt-14 sm:px-6 sm:pb-24 sm:pt-20">
         <div className="mx-auto max-w-5xl">
-          <div className="grid gap-8 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {trustPoints.map(([title, description], index) => (
-              <div key={index} className="rounded-[2rem] border border-[#E5D5C4] bg-white p-10 text-left shadow-[0_18px_42px_rgba(62,25,18,0.08)]">
+              <div key={index} className="rounded-[2rem] border border-[#E5D5C4] bg-white p-6 text-left shadow-[0_18px_42px_rgba(62,25,18,0.08)] sm:p-8 lg:p-10">
                 <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#8F381E]">{title}</p>
                 <p className="mt-4 text-sm leading-7 text-[#5B4038]">{description}</p>
               </div>

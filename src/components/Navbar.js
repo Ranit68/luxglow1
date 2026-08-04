@@ -40,29 +40,26 @@ export default function Navbar() {
   }, []);
 
   return (
-    <div className="fixed z-50 flex w-full justify-center">
+    <div className="fixed inset-x-0 top-0 z-50">
       <nav
         ref={menuRef}
-        className={`transition-all duration-300 ${
+        className={`border-b border-[#EADBCF] transition-all duration-300 ${
           scrolled
-            ? "mt-0 w-full border-b border-[#EADBCF] bg-[rgba(250,246,240,0.96)] shadow-[0_10px_28px_rgba(62,25,18,0.07)] backdrop-blur-xl"
-            : "mt-0 w-full border-b border-white/30 bg-[rgba(250,246,240,0.76)] backdrop-blur-xl"
+            ? "bg-[rgba(250,246,240,0.96)] shadow-[0_10px_28px_rgba(62,25,18,0.07)] backdrop-blur-xl"
+            : "bg-[rgba(250,246,240,0.78)] backdrop-blur-xl"
         }`}
       >
-        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-6 py-3">
-          <div className="hidden items-center gap-7 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#6C4E46] md:flex">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <div className="hidden items-center gap-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#6C4E46] lg:flex">
             <Link href="/" className="transition hover:text-[#7D1111]">Home</Link>
             <Link href="/shop" className="transition hover:text-[#7D1111]">Collections</Link>
             <Link href="/shop?category=Festive" className="transition hover:text-[#7D1111]">Pujo Edit 2026</Link>
             <Link href="/about" className="transition hover:text-[#7D1111]">About</Link>
           </div>
 
-          <Link
-            href="/"
-            className="justify-self-start text-center text-[#5A0F1C] md:justify-self-center"
-          >
-            <span className="flex flex-col items-start md:items-center">
-              <span className="font-[var(--font-playfair)] text-2xl font-semibold uppercase leading-none tracking-[0.08em]">
+          <Link href="/" className="flex min-w-0 items-center text-[#5A0F1C]">
+            <span className="flex flex-col items-start sm:items-center">
+              <span className="font-[var(--font-playfair)] text-xl font-semibold uppercase leading-none tracking-[0.08em] sm:text-2xl">
                 Luxe & Glow
               </span>
               <span className="mt-1 text-[9px] uppercase tracking-[0.34em] text-[#8B6B62]">
@@ -71,20 +68,20 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <div className="hidden items-center justify-end gap-4 md:flex">
-            <Link href="/saved" className="relative p-2 text-[#5A0F1C] transition hover:text-[#9B251C]">
+          <div className="hidden items-center gap-3 sm:flex">
+            <Link href="/saved" className="relative rounded-full p-2 text-[#5A0F1C] transition hover:bg-white/70 hover:text-[#9B251C]">
               <Heart className="h-4 w-4" />
               {savedCount > 0 && (
-                <span className="absolute -right-3 -top-2 rounded-full bg-[#5A0F1C] px-2 py-0.5 text-xs text-white">
+                <span className="absolute -right-2 -top-2 rounded-full bg-[#5A0F1C] px-2 py-0.5 text-[10px] text-white">
                   {savedCount}
                 </span>
               )}
             </Link>
 
-            <Link href="/cart" className="relative p-2 text-[#5A0F1C] transition hover:text-[#9B251C]">
+            <Link href="/cart" className="relative rounded-full p-2 text-[#5A0F1C] transition hover:bg-white/70 hover:text-[#9B251C]">
               <ShoppingBag className="h-4 w-4" />
               {cartCount > 0 && (
-                <span className="absolute -right-3 -top-2 rounded-full bg-[#5A0F1C] px-2 py-0.5 text-xs text-white">
+                <span className="absolute -right-2 -top-2 rounded-full bg-[#5A0F1C] px-2 py-0.5 text-[10px] text-white">
                   {cartCount}
                 </span>
               )}
@@ -101,7 +98,7 @@ export default function Navbar() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/profile"
-                  className="flex h-8 w-8 items-center justify-center bg-[#5A0F1C] text-white transition hover:bg-[#9B251C]"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5A0F1C] text-white transition hover:bg-[#9B251C]"
                 >
                   <UserRound className="h-4 w-4" />
                 </Link>
@@ -116,16 +113,16 @@ export default function Navbar() {
           </div>
 
           <button
-            className="justify-self-end bg-white/80 p-2 text-[#5A0F1C] shadow-sm md:hidden"
+            className="inline-flex items-center justify-center rounded-full border border-[#EADBCF] bg-white/80 p-2.5 text-[#5A0F1C] shadow-sm lg:hidden"
             onClick={() => setOpen((value) => !value)}
             aria-label="Toggle navigation menu"
           >
-            {open ? <X className="h-7 w-7" /> : <Menu className="h-7 w-7" />}
+            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
         {open && (
-          <div className="space-y-3 border-t border-[#EADBCF] bg-[rgba(255,250,245,0.98)] px-6 pb-6 pt-4 text-base text-[#5A0F1C] md:hidden">
+          <div className="space-y-3 border-t border-[#EADBCF] bg-[rgba(255,250,245,0.98)] px-4 pb-6 pt-4 text-base text-[#5A0F1C] lg:hidden">
             <Link href="/" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Home</Link>
             <Link href="/shop" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Shop</Link>
             <Link href="/saved" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Saved</Link>
@@ -155,7 +152,7 @@ export default function Navbar() {
                     logout();
                     setOpen(false);
                   }}
-                  className="block rounded-2xl bg-white px-4 py-3 text-left font-semibold shadow-sm"
+                  className="block w-full rounded-2xl bg-white px-4 py-3 text-left font-semibold shadow-sm"
                 >
                   Logout
                 </button>

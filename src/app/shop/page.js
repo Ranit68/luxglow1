@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Heart, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Search, ShoppingBag } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { collection, getDocs, query } from "firebase/firestore";
 import ProductCardSkeleton from "@/components/ProductCardSkeleton";
 import AuthPromptModal from "@/components/AuthPromptModal";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 import { useSavedProducts } from "@/context/SavedProductsContext";
 import { auth, db } from "@/lib/firebase";
 
@@ -27,6 +28,7 @@ export default function ShopPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const { isSaved, toggleSavedProduct } = useSavedProducts();
   const pageParam = Number(searchParams.get("page")) || 1;
 
@@ -135,14 +137,30 @@ export default function ShopPage() {
     }
   };
 
+  const handleAddToCart = (product) => {
+    const activeUser = user || auth.currentUser;
+
+    if (!activeUser) {
+      setAuthPrompt({
+        action: "cart",
+        redirect: `/shop/${product.id}`,
+        title: "Login to add products to cart",
+        description: "Sign in to place your favorite sarees in your cart.",
+      });
+      return;
+    }
+
+    addToCart({ id: product.id, ...product });
+  };
+
   return (
     <main className="min-h-screen bg-[#F7F3EE] pt-24 text-[#2D1712]">
-      <section className="mx-auto max-w-7xl px-6 pb-14 pt-10">
+      <section className="mx-auto max-w-7xl px-4 pb-10 pt-8 sm:px-6 sm:pb-14 sm:pt-10">
         <div className="mb-9 text-[10px] uppercase tracking-[0.24em] text-[#7D6B5D]">
           Home <span className="px-2 text-[#B6A89A]">/</span> Collections
         </div>
 
-        <div className="flex flex-col gap-8 border-b border-[#D8CABB] pb-9 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-6 border-b border-[#D8CABB] pb-8 sm:gap-8 sm:pb-9 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <h1 className="font-[var(--font-editorial)] text-4xl font-semibold leading-tight text-[#24110D] md:text-5xl">
               The Heritage Series
@@ -165,8 +183,9 @@ export default function ShopPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-6 pb-24 lg:grid-cols-[230px_1fr]">
-        <aside className="space-y-8 text-xs">
+      <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-20 sm:px-6 sm:pb-24 lg:grid-cols-[240px_1fr] lg:gap-10">
+        {/* Filters: show on top (full width) for small screens, as a left sidebar on large screens */}
+        <aside className="order-1 w-full rounded-[1.5rem] border border-[#D8CABB] bg-white/80 p-5 text-xs shadow-sm mb-6 lg:mb-0 lg:order-1 lg:w-auto lg:sticky lg:top-24 lg:h-fit lg:space-y-8">
           <div className="flex items-center justify-between border-b border-[#D8CABB] pb-3">
             <p className="font-semibold uppercase tracking-[0.22em] text-[#24110D]">Filter by</p>
             <button
@@ -242,7 +261,7 @@ export default function ShopPage() {
           </div>
         </aside>
 
-        <div>
+        <div className="order-2">
           <div className="mb-7 flex flex-col gap-4 text-xs text-[#6F6258] sm:flex-row sm:items-center sm:justify-between">
             <p>
               Showing <span className="text-[#24110D]">{visibleProducts.length}</span> of{" "}
@@ -284,13 +303,16 @@ export default function ShopPage() {
           )}
 
           {!loading && visibleProducts.length > 0 && (
-            <div className="grid grid-cols-2 gap-x-7 gap-y-12 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
               {visibleProducts.map((product) => {
                 const saved = isSaved(product.id);
 
                 return (
-                  <article key={product.id} className="group">
-                    <div className="relative aspect-[3/4] overflow-hidden rounded-[1.25rem] bg-[#E8DED3]">
+                  <article
+                    key={product.id}
+                    className="group rounded-[1.5rem] border border-[#E7DDD1] bg-white p-3 shadow-[0_12px_34px_rgba(61,24,16,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_44px_rgba(61,24,16,0.16)] flex flex-col"
+                  >
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-[1.15rem] bg-[#E8DED3]">
                       <Link href={`/shop/${product.id}`} className="absolute inset-0 z-10">
                         <span className="sr-only">View {product.name}</span>
                       </Link>
@@ -304,30 +326,58 @@ export default function ShopPage() {
                       />
 
                       <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3">
-                        <span className="bg-[#F7F3EE]/86 px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.22em] text-[#7D1111]">
-                          {product.category || "Collection"}
+                        <span className="rounded-full bg-white/85 px-2.5 py-1 text-[8px] font-semibold uppercase tracking-[0.24em] text-[#7D1111]">
+                          New edit
                         </span>
 
-                        <button
-                          type="button"
-                          onClick={() => handleSaveClick(product)}
-                          className="bg-[#F7F3EE]/86 p-2 text-[#7D1111] transition hover:bg-white"
-                          aria-label={`${saved ? "Remove" : "Save"} ${product.name} wishlist`}
-                        >
-                          <Heart className={`h-4 w-4 ${saved ? "fill-current" : ""}`} />
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveClick(product)}
+                            className="rounded-full bg-white/85 p-2 text-[#7D1111] transition hover:bg-white"
+                            aria-label={`${saved ? "Remove" : "Save"} ${product.name} wishlist`}
+                          >
+                            <Heart className={`h-4 w-4 ${saved ? "fill-current" : ""}`} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddToCart(product)}
+                            className="rounded-full bg-[#7D1111] p-2 text-white transition hover:bg-[#5A0F1C]"
+                            aria-label={`Add ${product.name} to cart`}
+                          >
+                            <ShoppingBag className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    <Link href={`/shop/${product.id}`} className="block pt-4 text-center">
+                    <Link href={`/shop/${product.id}`} className="block pt-4 text-left flex-1">
                       <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#8A7667]">
-                        {product.fabric || product.category || "Luxe&Glow"}
+                        {product.fabric || "Luxe&Glow"}
                       </p>
-                      <h2 className="mx-auto mt-1 line-clamp-2 max-w-[15rem] font-[var(--font-editorial)] text-xl font-semibold leading-tight text-[#24110D]">
+                      <h2 className="mt-1 line-clamp-2 font-[var(--font-editorial)] text-lg font-semibold leading-tight text-[#24110D]">
                         {product.name}
                       </h2>
                       <p className="mt-2 text-sm text-[#7D1111]">{formatPrice(product.price)}</p>
                     </Link>
+
+                    <div className="mt-4 flex items-center justify-between">
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        className="rounded-md bg-[#7D1111] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5A0F1C]"
+                      >
+                        Add to cart
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveClick(product)}
+                        className="text-sm text-[#7D1111] underline"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </article>
                 );
               })}
