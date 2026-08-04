@@ -66,11 +66,7 @@ export default function Footer() {
           <div className="space-y-3 text-gray-400">
             <p className="flex items-center gap-2">
               <Mail size={16} />
-              support@luxeandglow.com
-            </p>
-            <p className="flex items-center gap-2">
-              <Phone size={16} />
-              +91 XXXXX XXXXX
+              support@luxeandglow.in
             </p>
           </div>
 
