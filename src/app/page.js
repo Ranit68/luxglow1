@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Sparkles } from "lucide-react";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { PujoCountdown } from "@/components/DurgaPujoExperience";
 import { db } from "@/lib/firebase";
 import { absoluteUrl, siteConfig } from "@/lib/seo";
+import pujoBanner from "../pujo_banner.png";
 
 const dayEdits = [
   {
@@ -27,6 +28,7 @@ const dayEdits = [
     href: "/shop?category=Organza",
     image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_12_05%20AM.png?alt=media&token=f326f27a-200d-40c6-abc9-b8e1458cd8ff",
     featured: true,
+    fit: "contain",
   },
   {
     title: "Saptami Elegance",
@@ -35,6 +37,7 @@ const dayEdits = [
     href: "/shop?category=Silk",
     image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_14_50%20AM.png?alt=media&token=bb6a2030-f1ef-4f60-8697-7575f241499c",
     featured: true,
+    fit: "contain",
   },
   {
     title: "Ashtami Royal",
@@ -42,7 +45,7 @@ const dayEdits = [
     copy: "Rich reds and golds made for the most photographed morning.",
     href: "/shop?category=Wedding",
     image:
-      "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2Fregal_woman_in_a_heavy_silk_saree_for_ashtami_evening_opulent_traditional.png?alt=media&token=cde9e4e3-0164-45ee-940a-1dc52fe37803",
+      "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_20_53%20AM.png?alt=media&token=cf84aef4-7f8d-4f33-9894-45e3df529458",
     featured: true,
   },
   {
@@ -50,7 +53,7 @@ const dayEdits = [
     eyebrow: "Evening glow",
     copy: "Bold contemporary weaves for the last grand night out.",
     href: "/shop?category=Party",
-    image: "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2FUntitled%20design(5).png?alt=media&token=8bbade9e-f846-4d10-bd78-f60ae6854b5d",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_41_43%20AM.png?alt=media&token=01a64b8c-80fe-49a4-8194-17a8841cd46f",
     featured: true,
   },
   {
@@ -58,6 +61,8 @@ const dayEdits = [
     eyebrow: "Sindoor and sweets",
     copy: "The quintessential red-and-gold drape for Dashami rituals.",
     href: "/shop?category=Festive",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_27_00%20AM.png?alt=media&token=7c2aa111-03e9-4bfa-bca0-0fa617c40cfa",
+    featured: true,
     red: true,
   },
 ];
@@ -305,7 +310,7 @@ export default function Home() {
 
       <section className="relative min-h-[100svh] overflow-hidden bg-[#3A1F19] md:min-h-screen">
         <Image
-          src="https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/pujo_banner.png?alt=media&token=02bea73e-1122-46ba-ae33-3dc364c52899"
+          src={pujoBanner}
           alt="Luxe&Glow Durga Puja festive saree collection"
           fill
           priority
@@ -509,7 +514,7 @@ export default function Home() {
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.75fr_0.75fr]">
           {dayEdits.map((item, index) => {
-            const imageCard = item.featured;
+            const imageCard = item.featured && item.image;
             const spanClass = index === 0 ? "lg:row-span-2" : "";
 
             return (
@@ -526,7 +531,9 @@ export default function Home() {
                     alt={item.title}
                     fill
                     sizes="(min-width: 1024px) 40vw, 100vw"
-                    className="object-cover transition duration-700 group-hover:scale-105"
+                    className={`transition duration-700 group-hover:scale-105 ${
+                      item.fit === "contain" ? "object-contain p-2" : "object-cover"
+                    }`}
                   />
                 )}
                 {imageCard && (
@@ -580,7 +587,7 @@ export default function Home() {
 
         <div className="relative min-h-[320px] overflow-hidden border border-[#E5D5C4]">
           <Image
-            src="https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2FChatGPT%20Image%20Jul%2012%2C%202026%2C%2006_58_50%20PM.png?alt=media&token=cbdba938-64d1-4ca7-9dbc-03a876cd5fe8"
+            src="https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_27_00%20AM.png?alt=media&token=7c2aa111-03e9-4bfa-bca0-0fa617c40cfa"
             alt="Festive silk saree detail"
             fill
             sizes="(min-width: 768px) 26vw, 100vw"
@@ -622,6 +629,16 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <Link
+        href="https://wa.me/919933614554?text=Hi%20Luxe%26Glow%2C%20I%20want%20to%20know%20more%20about%20your%20sarees."
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Contact Luxe&Glow on WhatsApp"
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_16px_34px_rgba(37,211,102,0.36)] transition hover:scale-105"
+      >
+        <MessageCircle className="h-7 w-7" />
+      </Link>
     </main>
   );
 }

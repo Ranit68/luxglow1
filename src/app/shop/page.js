@@ -5,13 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Heart, Search, ShoppingBag } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { collection, getDocs, query } from "firebase/firestore";
+import { collection, onSnapshot, query } from "firebase/firestore";
 import ProductCardSkeleton from "@/components/ProductCardSkeleton";
 import AuthPromptModal from "@/components/AuthPromptModal";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useSavedProducts } from "@/context/SavedProductsContext";
 import { auth, db } from "@/lib/firebase";
+import { getAvailableStock, isOutOfStock } from "@/lib/productStock";
 
 const categories = ["All", "Silk", "Cotton", "Wedding", "Festive", "Daily Wear", "Party Wear"];
 const occasions = ["Wedding", "Festive", "Corporate", "Casual"];
@@ -78,10 +79,12 @@ export default function ShopPage() {
   useEffect(() => {
     let ignore = false;
 
-    const fetchProducts = async () => {
-      setLoading(true);
+    const unsubscribe = onSnapshot(query(collection(db, "products")), (snapshot) => {
+      if (ignore) {
+        return;
+      }
 
-      const snapshot = await getDocs(query(collection(db, "products")));
+      setLoading(true);
       let data = snapshot.docs.map((item) => ({
         id: item.id,
         ...item.data(),
@@ -126,12 +129,18 @@ export default function ShopPage() {
       setTotalMatches(data.length);
       setHasNextPage(start + PRODUCTS_PER_PAGE < data.length);
       setLoading(false);
-    };
-
-    fetchProducts();
+    }, () => {
+      if (!ignore) {
+        setVisibleProducts([]);
+        setTotalMatches(0);
+        setHasNextPage(false);
+        setLoading(false);
+      }
+    });
 
     return () => {
       ignore = true;
+      unsubscribe();
     };
   }, [PRODUCTS_PER_PAGE, category, maxPrice, pageParam, search, sort]);
 
@@ -188,6 +197,10 @@ export default function ShopPage() {
   };
 
   const handleAddToCart = (product) => {
+    if (isOutOfStock(product)) {
+      return;
+    }
+
     const activeUser = user || auth.currentUser;
 
     if (!activeUser) {
@@ -356,6 +369,8 @@ export default function ShopPage() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
               {visibleProducts.map((product) => {
                 const saved = isSaved(product.id);
+                const soldOut = isOutOfStock(product);
+                const availableStock = getAvailableStock(product);
 
                 return (
                   <article
@@ -372,12 +387,26 @@ export default function ShopPage() {
                         alt={product.name}
                         fill
                         sizes="(min-width: 1024px) 25vw, 50vw"
-                        className="object-cover transition duration-700 group-hover:scale-105"
+                        className={`object-cover transition duration-700 group-hover:scale-105 ${
+                          soldOut ? "grayscale" : ""
+                        }`}
                       />
+
+                      {soldOut && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#1D0B08]/50">
+                          <span className="rounded-full bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7D1111]">
+                            Out of stock
+                          </span>
+                        </div>
+                      )}
 
                       <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3">
                         <span className="rounded-full bg-white/85 px-2.5 py-1 text-[8px] font-semibold uppercase tracking-[0.24em] text-[#7D1111]">
-                          New edit
+                          {soldOut
+                            ? "Sold out"
+                            : availableStock !== null
+                              ? `${availableStock} left`
+                              : "New edit"}
                         </span>
 
                         <div className="flex gap-2">
@@ -393,7 +422,8 @@ export default function ShopPage() {
                           <button
                             type="button"
                             onClick={() => handleAddToCart(product)}
-                            className="rounded-full bg-[#7D1111] p-2 text-white transition hover:bg-[#5A0F1C]"
+                            disabled={soldOut}
+                            className="rounded-full bg-[#7D1111] p-2 text-white transition hover:bg-[#5A0F1C] disabled:cursor-not-allowed disabled:bg-[#9B8C83]"
                             aria-label={`Add ${product.name} to cart`}
                           >
                             <ShoppingBag className="h-4 w-4" />
@@ -415,9 +445,10 @@ export default function ShopPage() {
                     <div className="mt-4 flex items-center justify-between">
                       <button
                         onClick={() => handleAddToCart(product)}
-                        className="rounded-md bg-[#7D1111] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5A0F1C]"
+                        disabled={soldOut}
+                        className="rounded-md bg-[#7D1111] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5A0F1C] disabled:cursor-not-allowed disabled:bg-[#9B8C83]"
                       >
-                        Add to cart
+                        {soldOut ? "Out of stock" : "Add to cart"}
                       </button>
 
                       <button

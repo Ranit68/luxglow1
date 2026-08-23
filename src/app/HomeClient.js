@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowUpRight, MessageCircle, Sparkles } from "lucide-react";
 import { PujoCountdown } from "@/components/DurgaPujoExperience";
 import { absoluteUrl, siteConfig } from "@/lib/seo";
+import pujoBanner from "../pujo_banner.png";
 
 const dayEdits = [
   {
@@ -22,6 +23,7 @@ const dayEdits = [
     copy: "Airy organza and gentle drapes for the first pandal evening.",
     href: "/shop?category=Organza",
     image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_12_05%20AM.png?alt=media&token=f326f27a-200d-40c6-abc9-b8e1458cd8ff",
+    fit: "contain",
   },
   {
     title: "Saptami Elegance",
@@ -29,6 +31,7 @@ const dayEdits = [
     copy: "Petal-soft color and delicate zari for family visits.",
     href: "/shop?category=Silk",
     image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_14_50%20AM.png?alt=media&token=bb6a2030-f1ef-4f60-8697-7575f241499c",
+    fit: "contain",
   },
   {
     title: "Ashtami Royal",
@@ -105,7 +108,7 @@ export default function HomeClient() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,244,226,0.22),transparent_38%),linear-gradient(135deg,rgba(255,244,226,0.16),transparent_55%)] md:hidden" />
         {/* Small-screen hero image: use the provided image which already contains text. Hide overlay text on small screens. */}
         <Image
-          src="https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/smallscreen.png?alt=media&token=fd46d588-3a00-4c69-a7c7-a080a88adf0e"
+          src={pujoBanner}
           alt="Luxe&Glow Pujo mobile hero"
           fill
           priority
@@ -114,7 +117,7 @@ export default function HomeClient() {
         />
         {/* Desktop / larger screens use the full banner */}
         <Image
-          src="https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/pujo_banner.png?alt=media&token=55f3e3a7-cfa7-4dad-b415-3729d1e133a3"
+          src={pujoBanner}
           alt="Luxe&Glow Durga Puja festive saree collection"
           fill
           priority
@@ -225,8 +228,17 @@ export default function HomeClient() {
                 href={item.href}
                 className={`group relative min-h-[250px] overflow-hidden border border-[#E5D5C4] ${spanClass} rounded-[1.75rem] px-6 py-6 text-left transition hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.12)]`}
               >
+                <Image
+                  src={item.image}
+                  alt={item.title}
+                  fill
+                  sizes="(min-width: 1280px) 40vw, (min-width: 768px) 50vw, 100vw"
+                  className={`transition duration-700 group-hover:scale-105 ${
+                    item.fit === "contain" ? "object-contain p-2" : "object-cover"
+                  }`}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#1D0B08]/78 via-[#1D0B08]/18 to-transparent" />
-                <div className="relative z-10 flex h-full min-h-[250px] flex-col justify-end p-6">
+                <div className="relative z-10 flex h-full min-h-[250px] flex-col justify-end p-6 text-white">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#8A3E30]">
                     {item.eyebrow}
                   </p>
@@ -253,6 +265,16 @@ export default function HomeClient() {
           </div>
         </div>
       </section>
+
+      <Link
+        href="https://wa.me/919933614554?text=Hi%20Luxe%26Glow%2C%20I%20want%20to%20know%20more%20about%20your%20sarees."
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Contact Luxe&Glow on WhatsApp"
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_16px_34px_rgba(37,211,102,0.36)] transition hover:scale-105"
+      >
+        <MessageCircle className="h-7 w-7" />
+      </Link>
     </main>
   );
 }

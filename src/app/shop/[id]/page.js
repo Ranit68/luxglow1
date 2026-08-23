@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Heart } from "lucide-react";
-import { doc, getDoc } from "firebase/firestore";
+import { Heart, Share2 } from "lucide-react";
+import { doc, onSnapshot } from "firebase/firestore";
 import ProductSkeleton from "@/components/ProductSkeleton";
 import AuthPromptModal from "@/components/AuthPromptModal";
 import { auth, db } from "@/lib/firebase";
@@ -12,6 +12,25 @@ import { useAuth } from "@/context/AuthContext";
 import { useSavedProducts } from "@/context/SavedProductsContext";
 import { useParams, useRouter } from "next/navigation";
 import ExpandableText from "@/components/ExpandableText";
+import { getAvailableStock, isLowStock, isOutOfStock } from "@/lib/productStock";
+
+function getPrimaryCategory(product) {
+  const values = [];
+
+  if (Array.isArray(product?.category)) {
+    values.push(...product.category);
+  } else if (product?.category) {
+    values.push(...String(product.category).split(","));
+  }
+
+  if (Array.isArray(product?.categories)) {
+    values.push(...product.categories);
+  } else if (product?.categories) {
+    values.push(...String(product.categories).split(","));
+  }
+
+  return values.map((item) => String(item).trim()).filter(Boolean)[0] || "Premium Saree";
+}
 
 export default function ProductDetails() {
   const { cart, addToCart, buyNow } = useCart();
@@ -27,6 +46,7 @@ export default function ProductDetails() {
   const [checking, setChecking] = useState(false);
   const [authPrompt, setAuthPrompt] = useState(null);
   const [saveError, setSaveError] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
 
   const isInCart = cart?.some((item) => item.id === id);
   const productSaved = isSaved(id);
@@ -39,7 +59,7 @@ export default function ProductDetails() {
 
   const detailHighlights = useMemo(
     () => [
-      { label: "Category", value: product?.category || "Premium Saree" },
+      { label: "Category", value: getPrimaryCategory(product) },
       { label: "Color", value: product?.color || "Signature tone" },
       {
         label: "Access",
@@ -52,12 +72,13 @@ export default function ProductDetails() {
   );
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      const snap = await getDoc(doc(db, "products", id));
-      if (snap.exists()) setProduct(snap.data());
-    };
+    const unsubscribe = onSnapshot(doc(db, "products", id), (snap) => {
+      if (snap.exists()) {
+        setProduct(snap.data());
+      }
+    });
 
-    fetchProduct();
+    return () => unsubscribe();
   }, [id]);
 
   useEffect(() => {
@@ -65,6 +86,12 @@ export default function ProductDetails() {
     const timeout = setTimeout(() => setShowCartSuccess(false), 2500);
     return () => clearTimeout(timeout);
   }, [showCartSuccess]);
+
+  useEffect(() => {
+    if (!shareMessage) return undefined;
+    const timeout = setTimeout(() => setShareMessage(""), 2500);
+    return () => clearTimeout(timeout);
+  }, [shareMessage]);
 
   if (!product) return <ProductSkeleton />;
 
@@ -116,12 +143,14 @@ export default function ProductDetails() {
   };
 
   const handleAddToCart = () => {
+    if (isOutOfStock(product)) return;
     if (!activeUser) return openAuthPrompt("cart");
     addToCart({ id, ...product });
     setShowCartSuccess(true);
   };
 
   const handleBuyNow = () => {
+    if (isOutOfStock(product)) return;
     if (!activeUser) return openAuthPrompt("buy");
     buyNow({ id, ...product });
     router.push("/checkout");
@@ -138,7 +167,33 @@ export default function ProductDetails() {
     }
   };
 
+  const handleShare = async () => {
+    const productUrl =
+      typeof window !== "undefined" ? `${window.location.origin}/shop/${id}` : `/shop/${id}`;
+    const shareData = {
+      title: product.name,
+      text: `Check out ${product.name} on Luxe&Glow`,
+      url: productUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareMessage("Share options opened.");
+        return;
+      }
+
+      await navigator.clipboard.writeText(productUrl);
+      setShareMessage("Product link copied.");
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      setShareMessage("Could not share right now.");
+    }
+  };
+
   const rating = Math.floor(product.rating || 4);
+  const availableStock = getAvailableStock(product);
+  const soldOut = isOutOfStock(product);
 
   return (
     <main className="min-h-screen bg-[#F7F1EA] pt-24 text-[#2C1A16]">
@@ -148,7 +203,7 @@ export default function ProductDetails() {
             <div className="relative overflow-hidden rounded-[2rem] bg-[#F2E1D1] shadow-[0_24px_60px_rgba(62,25,18,0.10)]">
               <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#F2E1D1] to-transparent" />
               <div className="absolute right-5 top-5 z-10 rounded-full bg-[#1C1311]/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white">
-                Protected Actions
+                {soldOut ? "Out of Stock" : availableStock !== null ? `${availableStock} Left` : "Protected Actions"}
               </div>
               <div className="relative aspect-[4/5]">
                 {images[0] && (
@@ -209,7 +264,7 @@ export default function ProductDetails() {
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       <span className="rounded-full bg-white/12 px-4 py-1 text-sm">
-                        {product.category}
+                        {getPrimaryCategory(product)}
                       </span>
                       <span className="rounded-full bg-white/12 px-4 py-1 text-sm">
                         {product.color || "Timeless shade"}
@@ -217,15 +272,25 @@ export default function ProductDetails() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleSave}
-                    className={`rounded-full p-3 transition ${
-                      productSaved ? "bg-white text-[#8E2437]" : "bg-white/12 text-white hover:bg-white/20"
-                    }`}
-                    aria-label={`Save ${product.name}`}
-                  >
-                    <Heart className={`h-5 w-5 ${productSaved ? "fill-current" : ""}`} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleShare}
+                      className="rounded-full bg-white/12 p-3 text-white transition hover:bg-white/20"
+                      aria-label={`Share ${product.name}`}
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </button>
+
+                    <button
+                      onClick={handleSave}
+                      className={`rounded-full p-3 transition ${
+                        productSaved ? "bg-white text-[#8E2437]" : "bg-white/12 text-white hover:bg-white/20"
+                      }`}
+                      aria-label={`Save ${product.name}`}
+                    >
+                      <Heart className={`h-5 w-5 ${productSaved ? "fill-current" : ""}`} />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -279,6 +344,21 @@ export default function ProductDetails() {
     </p>
   </div>
 </div>
+                  <p
+                    className={`mt-4 w-fit rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] ${
+                      soldOut
+                        ? "bg-red-50 text-red-700"
+                        : isLowStock(product)
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {soldOut
+                      ? "Out of stock"
+                      : availableStock !== null
+                        ? `${availableStock} in stock`
+                        : "In stock"}
+                  </p>
                 </div>
 
                 <div className="grid gap-4 rounded-[1.75rem] bg-[#FBF7F2] p-5 sm:grid-cols-3">
@@ -348,23 +428,31 @@ export default function ProductDetails() {
                   ) : (
                     <button
                       onClick={handleAddToCart}
-                      className="flex-1 rounded-full border-2 border-[#7A1C2B] py-4 text-[#7A1C2B] transition hover:bg-[#7A1C2B] hover:text-white"
+                      disabled={soldOut}
+                      className="flex-1 rounded-full border-2 border-[#7A1C2B] py-4 text-[#7A1C2B] transition hover:bg-[#7A1C2B] hover:text-white disabled:cursor-not-allowed disabled:border-[#B9AAA2] disabled:text-[#9B8C83] disabled:hover:bg-transparent"
                     >
-                      Add to Cart
+                      {soldOut ? "Out of Stock" : "Add to Cart"}
                     </button>
                   )}
 
                   <button
                     onClick={handleBuyNow}
-                    className="flex-1 rounded-full bg-gradient-to-r from-[#7A1C2B] to-[#C7893C] py-4 text-white shadow-lg transition hover:scale-[1.01]"
+                    disabled={soldOut}
+                    className="flex-1 rounded-full bg-gradient-to-r from-[#7A1C2B] to-[#C7893C] py-4 text-white shadow-lg transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:from-[#B9AAA2] disabled:to-[#B9AAA2] disabled:hover:scale-100"
                   >
-                    Buy Now
+                    {soldOut ? "Out of Stock" : "Buy Now"}
                   </button>
                 </div>
 
                 {saveError && (
                   <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {saveError}
+                  </p>
+                )}
+
+                {shareMessage && (
+                  <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    {shareMessage}
                   </p>
                 )}
               </div>

@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import CartItemSkeleton from "@/components/CartItemSkeleton";
 import AuthPromptModal from "@/components/AuthPromptModal";
 import CouponPanel from "@/components/CouponPanel";
+import { getAvailableStock, isOutOfStock } from "@/lib/productStock";
 
 export default function CartPage() {
   const { cart, increaseQty, decreaseQty, removeItem } = useCart();
@@ -92,6 +93,10 @@ export default function CartPage() {
   }
 
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
+  const hasUnavailableItems = cart.some((item) => {
+    const stock = getAvailableStock(item);
+    return isOutOfStock(item) || (stock !== null && item.qty > stock);
+  });
   const shippingCharge = 0;
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
@@ -121,14 +126,23 @@ export default function CartPage() {
 
         <div className="grid gap-8 lg:grid-cols-[1.45fr_0.8fr]">
           <div className="space-y-5">
-            {cart.map((item) => (
+            {cart.map((item) => {
+              const availableStock = getAvailableStock(item);
+              const unavailable = isOutOfStock(item) || (availableStock !== null && item.qty > availableStock);
+
+              return (
               <div
                 key={item.id}
                 className="flex flex-col gap-5 rounded-[1.6rem] border border-[#E7DDD1] bg-white p-5 shadow-[0_18px_40px_rgba(62,25,18,0.06)] sm:flex-row"
               >
                 <Link href={`/shop/${item.id}`} className="shrink-0">
                   <div className="relative h-32 w-32 overflow-hidden rounded-[1.1rem] bg-[#F6EDE5]">
-                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.name}
+                      fill
+                      className={`object-cover ${unavailable ? "grayscale" : ""}`}
+                    />
                   </div>
                 </Link>
 
@@ -141,7 +155,11 @@ export default function CartPage() {
                     </Link>
                     <p className="mt-2 text-sm text-[#7D1111]">Rs. {item.price}</p>
                     <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[#8A7667]">
-                      Handmade weave • Premium finish
+                      {unavailable
+                        ? "Out of stock"
+                        : availableStock !== null
+                          ? `${availableStock} left`
+                          : "Handmade weave - Premium finish"}
                     </p>
                   </div>
 
@@ -161,7 +179,8 @@ export default function CartPage() {
 
                       <button
                         onClick={() => increaseQty(item.id)}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#5A0F1C] transition hover:bg-white"
+                        disabled={availableStock !== null && item.qty >= availableStock}
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#5A0F1C] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label={`Increase quantity of ${item.name}`}
                       >
                         <Plus className="h-4 w-4" />
@@ -179,7 +198,8 @@ export default function CartPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <aside className="h-fit rounded-[1.8rem] border border-[#E7DDD1] bg-white p-7 shadow-[0_18px_40px_rgba(62,25,18,0.06)]">
@@ -233,13 +253,19 @@ export default function CartPage() {
               <span className="text-[#5A0F1C]">Rs. {total}</span>
             </div>
 
-            <Link
-              href="/checkout"
-              className="mt-8 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37] py-4 font-semibold text-white transition hover:scale-[1.01]"
-            >
-              Proceed to Checkout
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            {hasUnavailableItems ? (
+              <p className="mt-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Remove sold-out items or reduce quantity before checkout.
+              </p>
+            ) : (
+              <Link
+                href="/checkout"
+                className="mt-8 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#5A0F1C] to-[#D4AF37] py-4 font-semibold text-white transition hover:scale-[1.01]"
+              >
+                Proceed to Checkout
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
           </aside>
         </div>
       </div>

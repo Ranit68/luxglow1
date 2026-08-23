@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { getAvailableStock, isOutOfStock } from "@/lib/productStock";
 
 const CartContext = createContext();
 
@@ -53,10 +54,19 @@ export const CartProvider = ({ children }) => {
   };
 
   const addToCart = (product) => {
+    if (isOutOfStock(product)) {
+      return;
+    }
+
     updateCart((prev) => {
       const exist = prev.find((item) => item.id === product.id);
+      const availableStock = getAvailableStock(product);
 
       if (exist) {
+        if (availableStock !== null && exist.qty >= availableStock) {
+          return prev;
+        }
+
         return prev.map((item) =>
           item.id === product.id ? { ...item, qty: item.qty + 1 } : item
         );
@@ -68,7 +78,16 @@ export const CartProvider = ({ children }) => {
 
   const increaseQty = (id) => {
     updateCart((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, qty: item.qty + 1 } : item))
+      prev.map((item) => {
+        if (item.id !== id) return item;
+
+        const availableStock = getAvailableStock(item);
+        if (availableStock !== null && item.qty >= availableStock) {
+          return item;
+        }
+
+        return { ...item, qty: item.qty + 1 };
+      })
     );
   };
 
@@ -81,6 +100,10 @@ export const CartProvider = ({ children }) => {
   };
 
   const buyNow = (product) => {
+    if (isOutOfStock(product)) {
+      return;
+    }
+
     updateCart([{ ...product, qty: 1 }]);
   };
 

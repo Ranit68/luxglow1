@@ -8,6 +8,7 @@ import CouponPanel from "@/components/CouponPanel";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
+import { getAvailableStock, isOutOfStock } from "@/lib/productStock";
 
 const PAYMENT_METHODS = {
   cod: "Cash on Delivery",
@@ -188,6 +189,15 @@ export default function CheckoutPage() {
   const validateCheckout = () => {
     if (!selectedAddress) {
       return "Select a delivery address before placing the order.";
+    }
+
+    const unavailableItem = cart.find((item) => {
+      const stock = getAvailableStock(item);
+      return isOutOfStock(item) || (stock !== null && item.qty > stock);
+    });
+
+    if (unavailableItem) {
+      return `${unavailableItem.name || "A product"} is out of stock or above available quantity. Please update your cart.`;
     }
 
     if (paymentMethod === "cod" && selectedAddress.codAvailable === false) {
