@@ -235,7 +235,8 @@ export default function ProductDetails() {
                     {product.name}
                   </h1>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-4">
+                  {/* <div className="mt-4 flex flex-wrap items-center gap-4">
+                
                     <p className="text-4xl font-bold text-[#4E1320]">Rs. {product.price}</p>
                     <div className="flex items-center gap-3 rounded-full bg-[#F8F1EA] px-4 py-2">
                       <div className="flex text-lg text-[#C7893C]">
@@ -246,7 +247,38 @@ export default function ProductDetails() {
                         {product.rating || 4.0} ({product.ratingCount || 0} reviews)
                       </p>
                     </div>
-                  </div>
+                  </div> */}
+                  <div className="mt-4 flex flex-wrap items-center gap-4">
+  {/* Price */}
+  <div className="flex items-center gap-3">
+    {product.mrp && (
+      <p className="text-xl text-gray-500 line-through">
+        ₹{product.mrp}
+      </p>
+    )}
+
+    <p className="text-4xl font-bold text-[#4E1320]">
+      ₹{product.price}
+    </p>
+
+    {product.mrp > product.price && (
+      <span className="rounded-full bg-green-100 px-2 py-1 text-sm font-semibold text-green-700">
+        {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+      </span>
+    )}
+  </div>
+
+  {/* Rating */}
+  <div className="flex items-center gap-3 rounded-full bg-[#F8F1EA] px-4 py-2">
+    <div className="flex text-lg text-[#C7893C]">
+      {"★".repeat(rating)}
+      {"☆".repeat(5 - rating)}
+    </div>
+    <p className="text-sm text-[#6B4A42]">
+      {product.rating || 4.0} ({product.ratingCount || 0} reviews)
+    </p>
+  </div>
+</div>
                 </div>
 
                 <div className="grid gap-4 rounded-[1.75rem] bg-[#FBF7F2] p-5 sm:grid-cols-3">

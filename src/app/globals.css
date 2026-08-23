@@ -257,6 +257,7 @@ textarea {
 .animate-slideIn {
   animation: slideIn 0.35s ease;
 }
+
 @keyframes scaleIn {
   from {
     opacity: 0;
@@ -286,4 +287,3 @@ textarea {
     opacity: 1;
   }
 }
-

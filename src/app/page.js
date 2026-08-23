@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { PujoCountdown } from "@/components/DurgaPujoExperience";
+import { db } from "@/lib/firebase";
 import { absoluteUrl, siteConfig } from "@/lib/seo";
 
 const dayEdits = [
@@ -15,7 +17,7 @@ const dayEdits = [
     copy: "Ivory, red borders, and quiet elegance for the first festive note.",
     href: "/shop?category=Festive",
     image:
-      "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2Felegant_woman_in_a_white_and_red_traditional_saree_mahalaya_morning_atmosphere.png?alt=media&token=7f7b84ed-b88d-4b06-b11b-e4c5340d4fbb",
+      "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_09_25%20AM.png?alt=media&token=b9cb63e6-3831-467c-8817-bed31e086a5f",
     featured: true,
   },
   {
@@ -23,7 +25,7 @@ const dayEdits = [
     eyebrow: "Light arrival looks",
     copy: "Airy organza and gentle drapes for the first pandal evening.",
     href: "/shop?category=Organza",
-    image: "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2FChatGPT%20Image%20Jul%2012%2C%202026%2C%2009_10_18%20PM.png?alt=media&token=5e9ee1d8-8414-40a9-a650-7d7824784fcf",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_12_05%20AM.png?alt=media&token=f326f27a-200d-40c6-abc9-b8e1458cd8ff",
     featured: true,
   },
   {
@@ -31,7 +33,7 @@ const dayEdits = [
     eyebrow: "Threadwork details",
     copy: "Petal-soft color and delicate zari for family visits.",
     href: "/shop?category=Silk",
-    image: "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2FChatGPT%20Image%20Jul%2012%2C%202026%2C%2008_53_19%20PM.png?alt=media&token=faeb9ae7-c4d4-4c8d-b988-abbbf00be08a",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_14_50%20AM.png?alt=media&token=bb6a2030-f1ef-4f60-8697-7575f241499c",
     featured: true,
   },
   {
@@ -66,9 +68,124 @@ const trustPoints = [
   ["Pan-India delivery", "Celebrate from Kolkata to anywhere your Pujo plans take you."],
 ];
 
+function formatPrice(value) {
+  return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
+}
+
+function getProductImage(product) {
+  return (
+    product.transparentImageUrl ||
+    product.pngImageUrl ||
+    product.noBgImageUrl ||
+    product.cutoutImageUrl ||
+    product.imageUrl ||
+    product.images?.[0] ||
+    ""
+  );
+}
+
+async function resolveTopCollectionDoc(snapshotDoc) {
+  const data = snapshotDoc.data();
+  const productId = data.productId || data.productRef || data.id;
+
+  if (productId?.path && !data.name) {
+    const productSnap = await getDoc(productId);
+
+    if (productSnap.exists()) {
+      return {
+        id: productSnap.id,
+        sortOrder: data.sortOrder ?? data.order ?? 0,
+        ...productSnap.data(),
+      };
+    }
+  }
+
+  if (typeof productId === "string" && !data.name) {
+    const normalizedProductId = productId.includes("/") ? productId.split("/").pop() : productId;
+    const productSnap = await getDoc(doc(db, "products", normalizedProductId));
+
+    if (productSnap.exists()) {
+      return {
+        id: productSnap.id,
+        sortOrder: data.sortOrder ?? data.order ?? 0,
+        ...productSnap.data(),
+      };
+    }
+  }
+
+  return {
+    id: productId || snapshotDoc.id,
+    sortOrder: data.sortOrder ?? data.order ?? 0,
+    ...data,
+  };
+}
+
+async function loadTopCollectionProducts() {
+  const collectionRefs = [
+    collection(db, "top collection"),
+    collection(db, "Top Collection"),
+    collection(db, "topCollection"),
+    collection(db, "topCollections"),
+    collection(db, "top_collection"),
+    collection(db, "sections", "top collection", "products"),
+    collection(db, "sections", "Top Collection", "products"),
+    collection(db, "sections", "topCollection", "products"),
+    collection(db, "sections", "top_collections", "products"),
+    collection(db, "sections", "top collection", "sarees"),
+    collection(db, "sections", "Top Collection", "sarees"),
+    collection(db, "sections", "topCollection", "sarees"),
+  ];
+
+  for (const collectionRef of collectionRefs) {
+    let snapshot;
+
+    try {
+      snapshot = await getDocs(collectionRef);
+    } catch {
+      continue;
+    }
+
+    if (!snapshot.empty) {
+      const products = await Promise.all(snapshot.docs.map(resolveTopCollectionDoc));
+      return products
+        .filter((product) => product.name && getProductImage(product))
+        .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+    }
+  }
+
+  let productsSnapshot;
+
+  const fallbackQueries = [
+    query(collection(db, "products"), where("section", "==", "top collection"), limit(12)),
+    query(collection(db, "products"), where("section", "==", "Top Collection"), limit(12)),
+    query(collection(db, "products"), where("topCollection", "==", true), limit(12)),
+    query(collection(db, "products"), where("isTopCollection", "==", true), limit(12)),
+  ];
+
+  for (const fallbackQuery of fallbackQueries) {
+    try {
+      productsSnapshot = await getDocs(fallbackQuery);
+    } catch {
+      continue;
+    }
+
+    if (!productsSnapshot.empty) break;
+  }
+
+  if (!productsSnapshot || productsSnapshot.empty) return [];
+
+  return productsSnapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .filter((product) => product.name && getProductImage(product));
+}
+
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [topCollectionProducts, setTopCollectionProducts] = useState([]);
+  const [topCollectionLoading, setTopCollectionLoading] = useState(true);
+  const [activeTopCollectionIndex, setActiveTopCollectionIndex] = useState(0);
+  const topCollectionScrollerRef = useRef(null);
 
   useEffect(() => {
     const hasRazorpayParams =
@@ -85,6 +202,66 @@ export default function Home() {
       }
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchTopCollection = async () => {
+      try {
+        const products = await loadTopCollectionProducts();
+
+        if (!ignore) {
+          setTopCollectionProducts(products);
+        }
+      } catch {
+        if (!ignore) {
+          setTopCollectionProducts([]);
+        }
+      } finally {
+        if (!ignore) {
+          setTopCollectionLoading(false);
+        }
+      }
+    };
+
+    fetchTopCollection();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const updateTopCollectionCenter = (container) => {
+    const items = Array.from(container.querySelectorAll("[data-top-product-index]"));
+    const containerCenter = container.getBoundingClientRect().left + container.clientWidth / 2;
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+
+    items.forEach((item) => {
+      const rect = item.getBoundingClientRect();
+      const itemCenter = rect.left + rect.width / 2;
+      const distance = Math.abs(containerCenter - itemCenter);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = Number(item.dataset.topProductIndex || 0);
+      }
+    });
+
+    setActiveTopCollectionIndex((currentIndex) =>
+      currentIndex === closestIndex ? currentIndex : closestIndex
+    );
+  };
+
+  const scrollTopCollection = (direction) => {
+    const container = topCollectionScrollerRef.current;
+    if (!container) return;
+
+    container.scrollBy({
+      left: direction * Math.min(container.clientWidth * 0.78, 420),
+      behavior: "smooth",
+    });
+  };
 
   const organizationSchema = {
     "@context": "https://schema.org",
@@ -204,6 +381,111 @@ export default function Home() {
             heritage close while making every look easy to wear.
           </p>
           <span className="mt-8 inline-block h-1 w-1 rounded-full bg-[#B9965B]" />
+        </div>
+      </section>
+
+      <section className="overflow-hidden px-4 py-16 sm:px-6 lg:py-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#9B251C]">
+                Top collection
+              </p>
+              <h2 className="mt-3 font-[var(--font-playfair)] text-4xl font-semibold text-[#7D1111]">
+                Customer-loved sarees
+              </h2>
+            </div>
+            <Link
+              href="/shop"
+              className="inline-flex w-fit items-center gap-2 border-b border-[#8A5A18] pb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#8A5A18]"
+            >
+              Shop all
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {topCollectionLoading && (
+            <div className="flex gap-5 overflow-hidden">
+              {[...Array(4)].map((_, index) => (
+                <div
+                  key={index}
+                  className="h-[22rem] w-[16rem] shrink-0 animate-pulse rounded-[1.25rem] bg-[#E9DCCD]"
+                />
+              ))}
+            </div>
+          )}
+
+          {!topCollectionLoading && topCollectionProducts.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => scrollTopCollection(-1)}
+                className="absolute left-0 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2D2C1] bg-white/90 text-[#7D1111] shadow-[0_12px_28px_rgba(62,25,18,0.16)] backdrop-blur transition hover:bg-white sm:h-11 sm:w-11 lg:-left-5"
+                aria-label="Scroll top collection left"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+
+              <div
+                ref={topCollectionScrollerRef}
+                onScroll={(event) => updateTopCollectionCenter(event.currentTarget)}
+                className="-mx-4 overflow-x-auto scroll-smooth px-12 pb-6 sm:-mx-6 sm:px-16 lg:mx-0 lg:px-12"
+              >
+                <div className="flex w-max snap-x snap-mandatory items-end gap-5 sm:gap-6">
+                  {topCollectionProducts.map((product, index) => {
+                    const featured = activeTopCollectionIndex === index;
+                    const image = getProductImage(product);
+
+                    return (
+                      <Link
+                        key={product.id}
+                        data-top-product-index={index}
+                        href={`/shop/${product.id}`}
+                        className="group relative flex w-[16.5rem] shrink-0 snap-center flex-col items-center text-center transition duration-300 sm:w-[18.5rem] lg:w-[19.5rem]"
+                      >
+                        <div
+                          className={`relative w-full overflow-visible transition-all duration-300 ${
+                            featured
+                              ? "h-[22rem] sm:h-[25rem] lg:h-[27rem]"
+                              : "h-[20.75rem] sm:h-[23.75rem] lg:h-[25.75rem]"
+                          }`}
+                        >
+                          <div className="absolute inset-x-4 bottom-5 h-14 rounded-full bg-[#2D1712]/18 blur-2xl" />
+                          <Image
+                            src={image}
+                            alt={product.name}
+                            fill
+                            sizes="(min-width: 1024px) 19.5rem, 18.5rem"
+                            className={`object-contain drop-shadow-[0_22px_32px_rgba(45,23,18,0.24)] transition duration-500 group-hover:-translate-y-1 ${
+                              featured ? "scale-[1.035]" : "scale-100"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="-mt-3 w-full rounded-[1.25rem] border border-[#E2D2C1] bg-white/78 px-4 py-4 shadow-[0_18px_45px_rgba(62,25,18,0.08)] backdrop-blur">
+                          <p className="line-clamp-2 min-h-[2.75rem] font-[var(--font-playfair)] text-xl font-semibold leading-tight text-[#3A1712]">
+                            {product.name}
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-[#7D1111]">
+                            {formatPrice(product.price)}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => scrollTopCollection(1)}
+                className="absolute right-0 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2D2C1] bg-white/90 text-[#7D1111] shadow-[0_12px_28px_rgba(62,25,18,0.16)] backdrop-blur transition hover:bg-white sm:h-11 sm:w-11 lg:-right-5"
+                aria-label="Scroll top collection right"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

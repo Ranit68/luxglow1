@@ -22,6 +22,38 @@ function formatPrice(value) {
   return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
+function normalizeCategory(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+function getProductCategories(product) {
+  const values = [];
+
+  if (Array.isArray(product.categories)) {
+    values.push(...product.categories);
+  } else if (product.categories) {
+    values.push(...String(product.categories).split(","));
+  }
+
+  if (Array.isArray(product.category)) {
+    values.push(...product.category);
+  } else if (product.category) {
+    values.push(...String(product.category).split(","));
+  }
+
+  return values.map(normalizeCategory).filter(Boolean);
+}
+
+function matchesCategory(product, selectedCategory) {
+  const selected = normalizeCategory(selectedCategory);
+  return getProductCategories(product).some(
+    (item) => item === selected || item.includes(selected) || selected.includes(item)
+  );
+}
+
 export default function ShopPage() {
   const PRODUCTS_PER_PAGE = 12;
 
@@ -31,11 +63,12 @@ export default function ShopPage() {
   const { addToCart } = useCart();
   const { isSaved, toggleSavedProduct } = useSavedProducts();
   const pageParam = Number(searchParams.get("page")) || 1;
+  const categoryParam = searchParams.get("category");
+  const category = categoryParam || "All";
 
   const [visibleProducts, setVisibleProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
   const [maxPrice, setMaxPrice] = useState(MAX_PRICE);
   const [sort, setSort] = useState("latest");
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -55,7 +88,7 @@ export default function ShopPage() {
       }));
 
       if (category !== "All") {
-        data = data.filter((product) => product.category === category);
+        data = data.filter((product) => matchesCategory(product, category));
       }
 
       if (sort === "latest") {
@@ -107,9 +140,26 @@ export default function ShopPage() {
     return Array.from({ length: Math.min(maxPage, 4) }, (_, index) => index + 1);
   }, [PRODUCTS_PER_PAGE, totalMatches]);
 
-  const goNext = () => router.push(`/shop?page=${pageParam + 1}`);
-  const goPrev = () => router.push(`/shop?page=${pageParam - 1}`);
-  const goPage = (page) => router.push(`/shop?page=${page}`);
+  const updateCategory = (nextCategory) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("page", "1");
+    if (nextCategory === "All") {
+      params.delete("category");
+    } else {
+      params.set("category", nextCategory);
+    }
+
+    router.push(`/shop?${params.toString()}`);
+  };
+
+  const goPage = (page) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(page));
+    router.push(`/shop?${params.toString()}`);
+  };
+  const goNext = () => goPage(pageParam + 1);
+  const goPrev = () => goPage(pageParam - 1);
 
   const handleSaveClick = async (product) => {
     const activeUser = user || auth.currentUser;
@@ -191,7 +241,7 @@ export default function ShopPage() {
             <button
               type="button"
               onClick={() => {
-                setCategory("All");
+                updateCategory("All");
                 setSearch("");
                 setMaxPrice(MAX_PRICE);
               }}
@@ -210,7 +260,7 @@ export default function ShopPage() {
                     type="radio"
                     name="category"
                     checked={category === item}
-                    onChange={() => setCategory(item)}
+                    onChange={() => updateCategory(item)}
                     className="h-3.5 w-3.5 accent-[#7D1111]"
                   />
                   <span>{item}</span>

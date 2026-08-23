@@ -13,7 +13,7 @@ const dayEdits = [
     copy: "Ivory, red borders, and quiet elegance for the first festive note.",
     href: "/shop?category=Festive",
     image:
-      "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2Felegant_woman_in_a_white_and_red_traditional_saree_mahalaya_morning_atmosphere.png?alt=media&token=7f7b84ed-b88d-4b06-b11b-e4c5340d4fbb",
+      "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_09_25%20AM.png?alt=media&token=b9cb63e6-3831-467c-8817-bed31e086a5f",
     featured: true,
   },
   {
@@ -21,14 +21,14 @@ const dayEdits = [
     eyebrow: "Light arrival looks",
     copy: "Airy organza and gentle drapes for the first pandal evening.",
     href: "/shop?category=Organza",
-    image: "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2FChatGPT%20Image%20Jul%2012%2C%202026%2C%2009_10_18%20PM.png?alt=media&token=5e9ee1d8-8414-40a9-a650-7d7824784fcf",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_12_05%20AM.png?alt=media&token=f326f27a-200d-40c6-abc9-b8e1458cd8ff",
   },
   {
     title: "Saptami Elegance",
     eyebrow: "Threadwork details",
     copy: "Petal-soft color and delicate zari for family visits.",
     href: "/shop?category=Silk",
-    image: "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2FChatGPT%20Image%20Jul%2012%2C%202026%2C%2008_53_19%20PM.png?alt=media&token=faeb9ae7-c4d4-4c8d-b988-abbbf00be08a",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_14_50%20AM.png?alt=media&token=bb6a2030-f1ef-4f60-8697-7575f241499c",
   },
   {
     title: "Ashtami Royal",
@@ -36,21 +36,21 @@ const dayEdits = [
     copy: "Rich reds and golds made for the most photographed morning.",
     href: "/shop?category=Wedding",
     image:
-      "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2Fregal_woman_in_a_heavy_silk_saree_for_ashtami_evening_opulent_traditional.png?alt=media&token=cde9e4e3-0164-45ee-940a-1dc52fe37803",
+      "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_20_53%20AM.png?alt=media&token=cf84aef4-7f8d-4f33-9894-45e3df529458",
   },
   {
     title: "Navami Celebration",
     eyebrow: "Evening glow",
     copy: "Bold contemporary weaves for the last grand night out.",
     href: "/shop?category=Party",
-    image: "https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2FUntitled%20design(5).png?alt=media&token=8bbade9e-f846-4d10-bd78-f60ae6854b5d",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_41_43%20AM.png?alt=media&token=01a64b8c-80fe-49a4-8194-17a8841cd46f",
   },
   {
     title: "Bijoya Classics",
     eyebrow: "Sindoor and sweets",
     copy: "The quintessential red-and-gold drape for Dashami rituals.",
     href: "/shop?category=Festive",
-    red: true,
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Aug%2023%2C%202026%2C%2010_27_00%20AM.png?alt=media&token=7c2aa111-03e9-4bfa-bca0-0fa617c40cfa",
   },
 ];
 
@@ -105,7 +105,7 @@ export default function HomeClient() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,244,226,0.22),transparent_38%),linear-gradient(135deg,rgba(255,244,226,0.16),transparent_55%)] md:hidden" />
         {/* Small-screen hero image: use the provided image which already contains text. Hide overlay text on small screens. */}
         <Image
-          src="https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/luxeglow%2Fsmallscreen.png?alt=media&token=d3e51921-7c33-456b-8b9e-c5811eb456bc"
+          src="https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/smallscreen.png?alt=media&token=fd46d588-3a00-4c69-a7c7-a080a88adf0e"
           alt="Luxe&Glow Pujo mobile hero"
           fill
           priority
@@ -114,7 +114,7 @@ export default function HomeClient() {
         />
         {/* Desktop / larger screens use the full banner */}
         <Image
-          src="https://firebasestorage.googleapis.com/v0/b/chatbot-8cc45.firebasestorage.app/o/pujo_banner.png?alt=media&token=02bea73e-1122-46ba-ae33-3dc364c52899"
+          src="https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/pujo_banner.png?alt=media&token=55f3e3a7-cfa7-4dad-b415-3729d1e133a3"
           alt="Luxe&Glow Durga Puja festive saree collection"
           fill
           priority
