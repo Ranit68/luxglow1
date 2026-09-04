@@ -1,29 +1,55 @@
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const CANONICAL_SITE_URL = "https://luxeglow.in";
+
+function isLoopbackHost(rawUrl) {
+  try {
+    const host = new URL(rawUrl).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host.endsWith(".local");
+  } catch {
+    return true;
+  }
+}
+
+// Canonical production domain is luxeglow.in. We never want localhost or a
+// transient preview URL to leak into the sitemap / canonical tags, so if
+// NEXT_PUBLIC_SITE_URL is unset or points at a loopback/development host we
+// always fall back to the live domain.
+const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const siteUrl = (configuredUrl && !isLoopbackHost(configuredUrl) ? configuredUrl : CANONICAL_SITE_URL).replace(/\/+$/, "");
 
 export const siteConfig = {
-  name: "Luxe&Glow Sarees",
+  name: "Luxe&Glow",
   shortName: "Luxe&Glow",
   description:
-    "Buy designer sarees online in India with curated silk, cotton, bridal, organza, party wear, and festive collections.",
+    "Shop premium sarees online in India, including silk, Mashru, Mashru Banarasi, Banarasi, Bengali style, fancy, festive, and party wear sarees.",
   url: siteUrl,
   ogImage:
     "https://images.pexels.com/photos/33439042/pexels-photo-33439042.jpeg?cs=srgb&dl=pexels-fliqaindia-33439042.jpg&fm=jpg",
-  contactEmail: "support@luxeandglow.com",
+  contactEmail: "support@luxeglow.in",
+  phone: "+91-9933614554",
+  whatsapp: "https://wa.me/919933614554",
+  instagram: "https://www.instagram.com/luxeglow161",
+  addressRegion: "West Bengal",
+  addressCountry: "IN",
+  areaServed: "IN",
 };
 
 export const primaryKeywords = [
-  "sarees online",
   "buy sarees online india",
-  "sarees for women",
-  "designer sarees online",
-  "silk saree online",
-  "bridal saree online",
-  "party wear saree",
-  "organza saree",
-  "ready to wear saree",
-  "wedding sarees online",
-  "cotton sarees online",
-  "festive saree collection",
+  "premium sarees online",
+  "designer sarees online india",
+  "silk sarees online",
+  "banarasi sarees online",
+  "mashru silk saree",
+  "mashru banarasi saree",
+  "bengali style saree",
+  "party wear sarees online",
+  "fancy sarees online",
+  "festive sarees online",
+  "wedding sarees online india",
+  "traditional sarees online",
+  "indian sarees online",
+  "luxe glow sarees",
+  "luxe and glow sarees",
 ];
 
 export function absoluteUrl(path = "/") {
@@ -68,6 +94,11 @@ export function createMetadata({
       title,
       description,
       images: imageList,
+    },
+    icons: {
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+      apple: "/favicon.ico",
     },
     robots: noIndex
       ? {

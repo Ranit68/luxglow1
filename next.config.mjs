@@ -12,6 +12,7 @@ const nextConfig = {
   },
 
   images: {
+    minimumCacheTTL: 604800, // 7 days — cache optimized product images on the CDN so they don't reload between pages
     remotePatterns: [
       {
         protocol: "https",

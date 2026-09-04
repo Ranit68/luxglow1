@@ -32,6 +32,9 @@ export default function Footer() {
             <Link href="/shop" className="footer-link">
               Shop
             </Link>
+            <Link href="/blog" className="footer-link">
+              Journal
+            </Link>
             <Link href="/about" className="footer-link">
               About Us
             </Link>
@@ -66,7 +69,7 @@ export default function Footer() {
           <div className="space-y-3 text-gray-400">
             <p className="flex items-center gap-2">
               <Mail size={16} />
-              support@luxeandglow.in
+              support@luxeglow.in
             </p>
           </div>
 

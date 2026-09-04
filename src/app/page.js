@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Sparkles, Star } from "lucide-react";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { PujoCountdown } from "@/components/DurgaPujoExperience";
 import { db } from "@/lib/firebase";
@@ -274,15 +274,60 @@ export default function Home() {
     name: siteConfig.name,
     url: siteConfig.url,
     logo: absoluteUrl("/favicon.ico"),
+    foundingDate: "2025",
+    telephone: siteConfig.phone,
+    email: siteConfig.contactEmail,
+    sameAs: [siteConfig.instagram, siteConfig.whatsapp].filter(Boolean),
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "Ajagarpara",
+      addressLocality: "Murshidabad",
+      addressRegion: "West Bengal",
+      addressCountry: "IN",
+    },
     contactPoint: [
       {
         "@type": "ContactPoint",
         contactType: "customer support",
+        telephone: siteConfig.phone,
         email: siteConfig.contactEmail,
         areaServed: "IN",
         availableLanguage: ["en", "hi"],
       },
     ],
+  };
+
+  const storeSchema = {
+    "@context": "https://schema.org",
+    "@type": "OnlineStore",
+    name: siteConfig.name,
+    url: siteConfig.url,
+    image: siteConfig.ogImage,
+    telephone: siteConfig.phone,
+    email: siteConfig.contactEmail,
+    foundingDate: "2025",
+    priceRange: "₹₹",
+    currenciesAccepted: "INR",
+    paymentAccepted: "Cash on Delivery, UPI, Credit Card, Debit Card, Net Banking",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "Ajagarpara",
+      addressLocality: "Murshidabad",
+      addressRegion: "West Bengal",
+      postalCode: "",
+      addressCountry: "IN",
+    },
+    areaServed: "IN",
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Sarees",
+      itemListElement: [
+        { "@type": "Offer", itemOffered: { "@type": "Product", name: "Silk Sarees" } },
+        { "@type": "Offer", itemOffered: { "@type": "Product", name: "Banarasi Sarees" } },
+        { "@type": "Offer", itemOffered: { "@type": "Product", name: "Cotton Sarees" } },
+        { "@type": "Offer", itemOffered: { "@type": "Product", name: "Party Wear Sarees" } },
+      ],
+    },
   };
 
   const websiteSchema = {
@@ -302,6 +347,10 @@ export default function Home() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(storeSchema) }}
       />
       <script
         type="application/ld+json"
@@ -399,6 +448,10 @@ export default function Home() {
               <h2 className="mt-3 font-[var(--font-playfair)] text-4xl font-semibold text-[#7D1111]">
                 Customer-loved sarees
               </h2>
+              <p className="mt-3 max-w-md text-sm leading-6 text-[#6F5A46]">
+                The tightly curated drape picks our shoppers keep returning to — heritage
+                weaves, festival colours, and the day-to-day essentials that sell out fast.
+              </p>
             </div>
             <Link
               href="/shop"
@@ -440,6 +493,10 @@ export default function Home() {
                   {topCollectionProducts.map((product, index) => {
                     const featured = activeTopCollectionIndex === index;
                     const image = getProductImage(product);
+                    const discount =
+                      product.mrp && product.mrp > product.price
+                        ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+                        : 0;
 
                     return (
                       <Link
@@ -458,22 +515,56 @@ export default function Home() {
                           <div className="absolute inset-x-4 bottom-5 h-14 rounded-full bg-[#2D1712]/18 blur-2xl" />
                           <Image
                             src={image}
-                            alt={product.name}
+                            alt={`${product.name}${product.fabric ? ` — ${product.fabric} saree` : ""}, buy online at Luxe&Glow`}
                             fill
                             sizes="(min-width: 1024px) 19.5rem, 18.5rem"
                             className={`object-contain drop-shadow-[0_22px_32px_rgba(45,23,18,0.24)] transition duration-500 group-hover:-translate-y-1 ${
                               featured ? "scale-[1.035]" : "scale-100"
                             }`}
                           />
+                          {discount > 0 && (
+                            <span className="absolute left-3 top-3 z-10 rounded-full bg-[#9B251C]/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_8px_18px_rgba(155,37,28,0.35)]">
+                              {discount}% off
+                            </span>
+                          )}
                         </div>
 
                         <div className="-mt-3 w-full rounded-[1.25rem] border border-[#E2D2C1] bg-white/78 px-4 py-4 shadow-[0_18px_45px_rgba(62,25,18,0.08)] backdrop-blur">
+                          {product.fabric && (
+                            <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8A5A18]">
+                              {product.fabric}
+                            </p>
+                          )}
                           <p className="line-clamp-2 min-h-[2.75rem] font-[var(--font-playfair)] text-xl font-semibold leading-tight text-[#3A1712]">
                             {product.name}
                           </p>
-                          <p className="mt-2 text-sm font-semibold text-[#7D1111]">
-                            {formatPrice(product.price)}
-                          </p>
+                          <div className="mt-2 flex items-center justify-center gap-1">
+                            <div className="flex items-center text-[#E0A93E]">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`h-3.5 w-3.5 ${
+                                    star <= Math.round(product.rating || 4)
+                                      ? "fill-current"
+                                      : "opacity-30"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs font-medium text-[#8A7561]">
+                              ({product.ratingCount || 0})
+                            </span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-center gap-2">
+                            <p className="text-base font-bold text-[#7D1111]">
+                              {formatPrice(product.price)}
+                            </p>
+                            {product.mrp > product.price && (
+                              <p className="text-xs text-[#A9947F] line-through">
+                                {formatPrice(product.mrp)}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </Link>
                     );

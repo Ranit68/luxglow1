@@ -29,19 +29,24 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata = {
   ...createMetadata({
-    title: "Luxe&Glow Sarees",
+    title: "Luxe&Glow - Premium Sarees Online India",
     description:
-      "Shop premium sarees online in India with bridal, silk, cotton, organza, festive, and party wear collections.",
+      "Shop premium sarees online in India at Luxe&Glow, including silk, Mashru, Mashru Banarasi, Banarasi, Bengali style, fancy, festive, and party wear sarees.",
     path: "/",
     keywords: [
-      "luxe and glow sarees",
-      "designer saree website india",
       "premium sarees online",
+      "silk sarees online india",
+      "mashru banarasi saree",
+      "banarasi sarees online",
+      "bengali style saree",
+      "party wear sarees online",
+      "designer saree website india",
+      "luxe and glow sarees",
     ],
   }),
   title: {
-    default: "Luxe&Glow Sarees",
-    template: "%s | Luxe&Glow Sarees",
+    default: "Luxe&Glow - Premium Sarees Online India",
+    template: "%s | Luxe&Glow",
   },
   applicationName: siteConfig.name,
   category: "fashion",
