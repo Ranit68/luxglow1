@@ -157,7 +157,7 @@ export default function HomeClient() {
               Celebrate Durga Puja
             </h1>
             <p className="mt-4 max-w-xs text-sm leading-6 text-[#4C342B] md:max-w-sm">
-              Festive sarees inspired by Bengal's rituals, warm lights, and timeless elegance.
+              Festive sarees inspired by Bengal&apos;s rituals, warm lights, and timeless elegance.
             </p>
 
             <div className="mt-7 flex flex-col gap-3 min-[420px]:flex-row">

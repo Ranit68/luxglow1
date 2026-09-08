@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
@@ -98,13 +98,12 @@ export default function CartPage() {
     return isOutOfStock(item) || (stock !== null && item.qty > stock);
   });
   const shippingCharge = 0;
-  const discountAmount = useMemo(() => {
-    if (!appliedCoupon) return 0;
-    if (appliedCoupon.discountType === "fixed") {
-      return Math.min(appliedCoupon.computedDiscount || 0, subtotal);
-    }
-    return appliedCoupon.computedDiscount || 0;
-  }, [appliedCoupon, subtotal]);
+  const discountAmount =
+    !appliedCoupon
+      ? 0
+      : appliedCoupon.discountType === "fixed"
+        ? Math.min(appliedCoupon.computedDiscount || 0, subtotal)
+        : appliedCoupon.computedDiscount || 0;
   const total = Math.max(0, subtotal - discountAmount + shippingCharge);
 
   return (

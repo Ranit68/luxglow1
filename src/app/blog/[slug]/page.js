@@ -293,7 +293,7 @@ const topics = {
       <Heading>Let colour lead the way</Heading>
       <Section>
         Across India, Navratri nights follow a colour calendar — yellows, greens, reds,
-        whites and purples each carry meaning. You can match your saree to the day's colour,
+        whites and purples each carry meaning. You can match your saree to the day&apos;s colour,
         or interpret it loosely in a lighter or darker tone that flatters your skin tone.
       </Section>
       <Heading>Fabrics that move with you</Heading>

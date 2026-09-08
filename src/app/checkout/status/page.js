@@ -46,7 +46,14 @@ export default function CheckoutStatusPage() {
   const [statusKey, setStatusKey] = useState(
     statusParam === "success" || statusParam === "failed" ? statusParam : "pending"
   );
-  const [message, setMessage] = useState(queryMessage);
+  const [message, setMessage] = useState(
+    queryMessage ||
+      (statusParam === "success"
+        ? "Your order is confirmed."
+        : statusParam === "failed"
+          ? "Your payment could not be confirmed."
+          : "")
+  );
   const [createdOrderRef, setCreatedOrderRef] = useState(queryOrderRef);
   const [callbackDebug, setCallbackDebug] = useState({});
   const paymentRequestId = searchParams.get("payment_request_id");
@@ -59,9 +66,6 @@ export default function CheckoutStatusPage() {
 
   useEffect(() => {
     if (statusParam === "success" || statusParam === "failed") {
-      setStatusKey(statusParam);
-      setMessage(queryMessage || (statusParam === "success" ? "Your order is confirmed." : "Your payment could not be confirmed."));
-      setCreatedOrderRef(queryOrderRef || "");
       if (statusParam === "success") {
         clearCart();
         if (user?.uid) {
