@@ -599,7 +599,7 @@ export default function ProfilePage() {
         )}
 
         <p className="mt-10 text-center text-xs text-[#A08D7D]">
-          Tracking updates automatically every few minutes from Delhivery.
+          Tracking updates automatically every day from Delhivery.
         </p>
       </div>
     </main>
