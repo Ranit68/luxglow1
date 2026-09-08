@@ -55,6 +55,7 @@ export default function Navbar() {
             <Link href="/shop" className="transition hover:text-[#7D1111]">Collections</Link>
             <Link href="/shop?category=Festive" className="transition hover:text-[#7D1111]">Pujo Edit 2026</Link>
             <Link href="/blog" className="transition hover:text-[#7D1111]">Journal</Link>
+            <Link href="/offers" className="transition hover:text-[#7D1111]">Offers</Link>
             <Link href="/about" className="transition hover:text-[#7D1111]">About</Link>
           </div>
 
@@ -128,6 +129,7 @@ export default function Navbar() {
             <Link href="/shop" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Shop</Link>
             <Link href="/saved" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Saved</Link>
             <Link href="/blog" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Journal</Link>
+            <Link href="/offers" onClick={() => setOpen(false)} className="block rounded-2xl bg-gradient-to-r from-[#7A1C2B] to-[#C7893C] px-4 py-3 font-semibold text-white shadow-sm">Offers</Link>
             <Link href="/about" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">About</Link>
             <Link href="/contact" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Contact</Link>
             <Link href="/cart" onClick={() => setOpen(false)} className="block rounded-2xl bg-white px-4 py-3 shadow-sm">Cart</Link>

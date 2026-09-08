@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import AuthPromptModal from "@/components/AuthPromptModal";
-import CouponPanel from "@/components/CouponPanel";
+import CouponPanel, { clearStoredCoupon } from "@/components/CouponPanel";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
@@ -318,6 +318,7 @@ export default function CheckoutPage() {
 
           clearCart();
           localStorage.removeItem(getDraftStorageKey(user.uid));
+          clearStoredCoupon();
           router.replace(
             `/checkout/status?status=success&orderRef=${encodeURIComponent(orderRef)}&payment_id=${encodeURIComponent(
               paymentResponse.razorpay_payment_id

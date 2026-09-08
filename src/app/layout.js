@@ -50,6 +50,11 @@ export const metadata = {
   },
   applicationName: siteConfig.name,
   category: "fashion",
+  verification: {
+    other: {
+      "p:domain_verify": "b5a8e217044549530eb2aad10c2a49b8",
+    },
+  },
 };
 
 export default function RootLayout({ children }) {

@@ -32,6 +32,9 @@ export default function Footer() {
             <Link href="/shop" className="footer-link">
               Shop
             </Link>
+            <Link href="/offers" className="footer-link">
+              Offers
+            </Link>
             <Link href="/blog" className="footer-link">
               Journal
             </Link>

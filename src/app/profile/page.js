@@ -13,6 +13,8 @@ import {
   X,
   ChevronRight,
   Check,
+  Gift,
+  Megaphone,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSavedProducts } from "@/context/SavedProductsContext";
@@ -523,6 +525,39 @@ export default function ProfilePage() {
               Logout
             </button>
           </div>
+        </div>
+
+        <div className="mb-8 flex flex-col justify-between gap-6 rounded-3xl border border-[#C7893C]/30 bg-gradient-to-br from-[#FBF3E7] to-[#F3E3CC] p-7 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#7A1C2B] text-white">
+              <Gift className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#C7893C]">
+                <Megaphone className="h-3.5 w-3.5" />
+                Your rewards
+              </p>
+              <h2 className="mt-1.5 text-xl font-semibold text-[#24110D]">
+                Post your saree look &amp; get up to 50% OFF your next order
+              </h2>
+              <p className="mt-1 text-sm text-[#6F6258]">
+                Received your saree? Share a photo wearing it on Instagram or Facebook,
+                tag @luxeglow, and we&apos;ll send you a discount code worth up to 50% off.
+                First order? Use code{" "}
+                <span className="rounded border border-dashed border-[#7A1C2B] bg-white px-1.5 py-0.5 font-semibold text-[#7A1C2B]">
+                  FIRST100
+                </span>{" "}
+                for ₹200 off.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/offers"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#7A1C2B] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#5A0F1C]"
+          >
+            See all offers
+            <ChevronRight className="h-4 w-4" />
+          </Link>
         </div>
 
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
