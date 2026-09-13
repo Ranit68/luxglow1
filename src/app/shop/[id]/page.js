@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, Share2 } from "lucide-react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import ProductSkeleton from "@/components/ProductSkeleton";
 import AuthPromptModal from "@/components/AuthPromptModal";
 import { auth, db } from "@/lib/firebase";
@@ -15,6 +15,7 @@ import { useParams, useRouter } from "next/navigation";
 import ExpandableText from "@/components/ExpandableText";
 import { getAvailableStock, isLowStock, isOutOfStock } from "@/lib/productStock";
 import { siteConfig, absoluteUrl } from "@/lib/seo";
+import { getProductRating, getProductReviews } from "@/lib/ratings";
 
 function getPrimaryCategory(product) {
   const values = [];
@@ -34,30 +35,11 @@ function getPrimaryCategory(product) {
   return values.map((item) => String(item).trim()).filter(Boolean)[0] || "Premium Saree";
 }
 
-// Deterministic per-product fallback so every saree shows a stable, varied
-// rating and review count even when a product has not had one assigned yet.
-function stableHash(str) {
-  let hash = 0;
-  const s = String(str || "");
-  for (let i = 0; i < s.length; i++) {
-    hash = (hash * 31 + s.charCodeAt(i)) | 0;
+function formatList(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(", ");
   }
-  return Math.abs(hash);
-}
-
-export function getProductRating(product) {
-  const base = Number(product?.rating);
-  if (base > 0 && base <= 5) {
-    return {
-      rating: Math.min(5, Math.max(1, base)),
-      ratingCount: Number(product?.ratingCount) || 0,
-    };
-  }
-  const h = stableHash(product?.id || product?.name);
-  return {
-    rating: 4 + ((h % 9) + 1) / 10, // 4.1 - 4.9
-    ratingCount: 6 + (h % 94), // 6 - 99
-  };
+  return String(value || "");
 }
 
 export default function ProductDetails() {
@@ -75,6 +57,7 @@ export default function ProductDetails() {
   const [authPrompt, setAuthPrompt] = useState(null);
   const [saveError, setSaveError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
+  const [userReviews, setUserReviews] = useState([]);
 
   const isInCart = cart?.some((item) => item.id === id);
   const productSaved = isSaved(id);
@@ -105,6 +88,41 @@ export default function ProductDetails() {
         setProduct(snap.data());
       }
     });
+
+    return () => unsubscribe();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return undefined;
+    const reviewsQuery = query(collection(db, "reviews"), where("productId", "==", id));
+    const unsubscribe = onSnapshot(
+      reviewsQuery,
+      (snapshot) => {
+        const list = snapshot.docs.map((d) => {
+          const r = d.data();
+          const ts = r.updatedAt || r.createdAt;
+          const date = ts ? new Date(ts).toLocaleDateString("en-IN", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }) : null;
+          return {
+            id: d.id,
+            name: r.userName || "Luxe&Glow customer",
+            rating: Number(r.rating) || 0,
+            date,
+            text: r.comment || "",
+            verified: true,
+            isReal: true,
+          };
+        });
+        list.sort((a, b) =>
+          String(b.date || "").localeCompare(String(a.date || ""))
+        );
+        setUserReviews(list);
+      },
+      () => setUserReviews([])
+    );
 
     return () => unsubscribe();
   }, [id]);
@@ -220,6 +238,7 @@ export default function ProductDetails() {
   };
 
   const ratingInfo = getProductRating({ ...product, id });
+  const reviews = getProductReviews({ ...product, id }, ratingInfo);
   const rating = Math.floor(ratingInfo.rating);
   const ratingCount = ratingInfo.ratingCount;
   const availableStock = getAvailableStock(product);
@@ -235,7 +254,7 @@ export default function ProductDetails() {
     product.images?.[0] ||
     siteConfig.ogImage;
   const productUrl = absoluteUrl(`/shop/${id}`);
-  const productAlt = `${product.name}${product.fabric ? ` — ${product.fabric} saree` : ""}${product.color ? ` in ${product.color}` : ""}, buy online at Luxe&Glow`;
+  const productAlt = `${product.name}${formatList(product.fabric) ? ` — ${formatList(product.fabric)} saree` : ""}${product.color ? ` in ${product.color}` : ""}, buy online at Luxe&Glow`;
 
   const productSchema = {
     "@context": "https://schema.org",
@@ -297,7 +316,7 @@ export default function ProductDetails() {
     ],
   };
 
-  const fabricName = product.fabric || "premium quality";
+  const fabricName = formatList(product.fabric) || "premium quality";
   const blouseAnswer =
     product.blouseIncluded || (product.blouse && /included|yes|true/i.test(String(product.blouse)))
       ? "Yes, a blouse piece is included with this saree for stitching."
@@ -657,6 +676,54 @@ export default function ProductDetails() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-4 pb-12 md:px-8">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#8A5A18]">
+          Customer Reviews
+        </p>
+        <h2 className="mt-3 font-[var(--font-editorial)] text-3xl font-semibold text-[#24110D]">
+          What our customers say
+        </h2>
+        {userReviews.length > 0 && (
+          <p className="mt-4 text-xs font-medium text-[#7A6B5F]">
+            {userReviews.length} verified customer review
+            {userReviews.length === 1 ? "" : "s"}
+          </p>
+        )}
+        <div className="mt-6 space-y-4">
+          {[...userReviews, ...reviews].map((review, index) => (
+            <div
+              key={review.id || index}
+              className={`rounded-2xl border bg-white px-5 py-4 shadow-[0_8px_24px_rgba(62,25,18,0.05)] ${
+                review.isReal ? "border-[#C7893C]/60" : "border-[#E2D2C1]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex text-sm text-[#C7893C]">
+                      {"★".repeat(review.rating)}
+                      {"☆".repeat(5 - review.rating)}
+                    </div>
+                    {review.verified && (
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#8E2437]">
+                        Verified Purchase
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[#5F5148]">
+                    {review.text}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-[#3A1712]">{review.name}</p>
+                  <p className="text-xs text-[#8A7561]">{review.date}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

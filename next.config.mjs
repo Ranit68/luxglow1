@@ -11,6 +11,17 @@ const nextConfig = {
     root: __dirname,
   },
 
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "luxeglow.in" }],
+        destination: "https://www.luxeglow.in/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   images: {
     minimumCacheTTL: 604800, // 7 days — cache optimized product images on the CDN so they don't reload between pages
     remotePatterns: [

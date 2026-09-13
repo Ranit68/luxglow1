@@ -59,7 +59,9 @@ export async function generateMetadata({ params }) {
       `${category} saree`,
       "designer saree details",
       "buy saree online india",
-      ...(product?.fabric ? [`${product.fabric} saree`] : []),
+      ...(product?.fabric
+        ? [`${Array.isArray(product.fabric) ? product.fabric.join(", ") : product.fabric} saree`]
+        : []),
     ],
     images: [image],
   });

@@ -1,6 +1,7 @@
 import React from "react";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 import { siteConfig, absoluteUrl } from "@/lib/seo";
+import { getProductRating } from "@/lib/ratings";
 
 export default async function Head({ params }) {
   const id = params.id;
@@ -20,6 +21,12 @@ export default async function Head({ params }) {
   const image = product?.imageUrl || (product?.images && product.images[0]) || siteConfig.ogImage;
   const url = absoluteUrl(`/shop/${id}`);
 
+  const { rating: ratingValue, ratingCount: reviewCount } = getProductRating({
+    ...product,
+    id,
+    name: product?.name,
+  });
+
   const jsonLd = {
     "@context": "https://schema.org/",
     "@type": "Product",
@@ -38,13 +45,12 @@ export default async function Head({ params }) {
       price: product?.price ? String(product.price) : undefined,
       availability: product?.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
-    aggregateRating: product?.rating
-      ? {
-          "@type": "AggregateRating",
-          ratingValue: String(product.rating),
-          reviewCount: product.ratingCount || 0,
-        }
-      : undefined,
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: String(ratingValue.toFixed(1)),
+      reviewCount,
+      bestRating: "5",
+    },
     potentialAction: {
       "@type": "SearchAction",
       target: `${siteConfig.url}/?q={search_term_string}`,

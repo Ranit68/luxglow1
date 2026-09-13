@@ -109,7 +109,7 @@ export default function SavedProductsPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#8E2437]">
-                        {product.category}
+                        {Array.isArray(product.category) ? product.category.join(", ") : product.category}
                       </p>
                       <h2 className="mt-2 text-xl font-semibold text-[#4E1320]">
                         {product.name}

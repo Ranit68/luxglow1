@@ -38,7 +38,7 @@ function SocialShareCard() {
     {
       icon: Share2,
       title: "Tag us on Instagram / Facebook",
-      text: "Post the photo and tag @luxeglow on Instagram or Luxe&Glow on Facebook. Add #LuxeGlowSaree.",
+      text: "Post the photo and tag @luxeglow161 on Instagram or Luxe Glow on Facebook. Add #LuxeGlowSaree.",
     },
     {
       icon: MessageCircle,
@@ -249,7 +249,7 @@ function Terms() {
         </li>
         <li>
           Coupons cannot be combined with other offers, cannot be redeemed for cash, and are
-          valid only for online orders on luxeglow.in.
+          valid only for online orders on www.luxeglow.in.
         </li>
         <li>Free shipping applies to all orders across India.</li>
       </ul>

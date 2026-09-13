@@ -1,4 +1,4 @@
-const CANONICAL_SITE_URL = "https://luxeglow.in";
+const CANONICAL_SITE_URL = "https://www.luxeglow.in";
 
 function isLoopbackHost(rawUrl) {
   try {
@@ -9,7 +9,7 @@ function isLoopbackHost(rawUrl) {
   }
 }
 
-// Canonical production domain is luxeglow.in. We never want localhost or a
+// Canonical production domain is www.luxeglow.in. We never want localhost or a
 // transient preview URL to leak into the sitemap / canonical tags, so if
 // NEXT_PUBLIC_SITE_URL is unset or points at a loopback/development host we
 // always fall back to the live domain.
@@ -23,7 +23,7 @@ export const siteConfig = {
     "Shop premium sarees online in India, including silk, Mashru, Mashru Banarasi, Banarasi, Bengali style, fancy, festive, and party wear sarees.",
   url: siteUrl,
   ogImage:
-    "https://images.pexels.com/photos/33439042/pexels-photo-33439042.jpeg?cs=srgb&dl=pexels-fliqaindia-33439042.jpg&fm=jpg",
+    "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/redwhite4.jpeg?alt=media&token=1019f8bb-9add-4400-9cf6-80f189c13d96",
   contactEmail: "support@luxeglow.in",
   phone: "+91-9933614554",
   whatsapp: "https://wa.me/919933614554",

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Sparkles, Star } from "lucide-react";
+import { ArrowUpRight, MessageCircle, Sparkles } from "lucide-react";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { PujoCountdown } from "@/components/DurgaPujoExperience";
+import TopCollectionCarousel from "@/components/TopCollectionCarousel";
+import OfferPopup from "@/components/OfferPopup";
 import { db } from "@/lib/firebase";
 import { absoluteUrl, siteConfig } from "@/lib/seo";
 import pujoBanner from "../pujo_banner.png";
@@ -73,9 +75,46 @@ const trustPoints = [
   ["Pan-India delivery", "Celebrate from Kolkata to anywhere your Pujo plans take you."],
 ];
 
-function formatPrice(value) {
-  return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
-}
+const fabricCatalog = [
+  {
+    name: "Silk",
+    tagline: "Pure & soft silks, rich zari",
+    href: "/shop?fabric=Silk",
+    image:
+      "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/01_silk.jpg?alt=media&token=7cf16b34-36ee-4497-b08d-0fd5465670d4",
+  },
+  {
+    name: "Organza",
+    tagline: "Airy, translucent festive weaves",
+    href: "/shop?fabric=Organza",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/02_organza.jpg?alt=media&token=55a45949-b4ee-470f-b59c-998b58c88751",
+  },
+  {
+    name: "Mashru",
+    tagline: "Silk-cotton comfort fusion",
+    href: "/shop?fabric=Mashru",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/03_mashru.jpg?alt=media&token=5336772b-8093-4fda-80a6-026f8af33f1e",
+  },
+  {
+    name: "Banarasi",
+    tagline: "Timeless brocade grandeur",
+    href: "/shop?fabric=Banarasi",
+    image:
+      "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Sep%2012%2C%202026%2C%2012_40_17%20PM.png?alt=media&token=110805b2-3ccd-47e3-9908-7e010a0f3bce",
+  },
+  {
+    name: "Cotton",
+    tagline: "Breathable everyday drapes",
+    href: "/shop?fabric=Cotton",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Sep%2012%2C%202026%2C%2012_42_15%20PM.png?alt=media&token=70d85ecf-6023-4f21-a090-be8af222f6b0",
+  },
+  {
+    name: "Georgette",
+    tagline: "Fluid evening-ready silhouettes",
+    href: "/shop?fabric=Georgette",
+    image: "https://firebasestorage.googleapis.com/v0/b/luxxglow.firebasestorage.app/o/ChatGPT%20Image%20Sep%2012%2C%202026%2C%2012_43_35%20PM.png?alt=media&token=81b3b07c-3ac1-4838-8ff4-beace6c41c05",
+  },
+];
 
 function getProductImage(product) {
   return (
@@ -189,8 +228,6 @@ export default function Home() {
   const searchParams = useSearchParams();
   const [topCollectionProducts, setTopCollectionProducts] = useState([]);
   const [topCollectionLoading, setTopCollectionLoading] = useState(true);
-  const [activeTopCollectionIndex, setActiveTopCollectionIndex] = useState(0);
-  const topCollectionScrollerRef = useRef(null);
 
   useEffect(() => {
     const hasRazorpayParams =
@@ -235,38 +272,6 @@ export default function Home() {
       ignore = true;
     };
   }, []);
-
-  const updateTopCollectionCenter = (container) => {
-    const items = Array.from(container.querySelectorAll("[data-top-product-index]"));
-    const containerCenter = container.getBoundingClientRect().left + container.clientWidth / 2;
-    let closestIndex = 0;
-    let closestDistance = Infinity;
-
-    items.forEach((item) => {
-      const rect = item.getBoundingClientRect();
-      const itemCenter = rect.left + rect.width / 2;
-      const distance = Math.abs(containerCenter - itemCenter);
-
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = Number(item.dataset.topProductIndex || 0);
-      }
-    });
-
-    setActiveTopCollectionIndex((currentIndex) =>
-      currentIndex === closestIndex ? currentIndex : closestIndex
-    );
-  };
-
-  const scrollTopCollection = (direction) => {
-    const container = topCollectionScrollerRef.current;
-    if (!container) return;
-
-    container.scrollBy({
-      left: direction * Math.min(container.clientWidth * 0.78, 420),
-      behavior: "smooth",
-    });
-  };
 
   const organizationSchema = {
     "@context": "https://schema.org",
@@ -438,6 +443,50 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20">
+        <div className="mb-10 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-[#9B251C]">
+            What we sell
+          </p>
+          <h2 className="mt-3 font-[var(--font-playfair)] text-4xl font-semibold text-[#7D1111]">
+            Sarees, woven by fabric
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[#6F5A46]">
+            From the regal fall of pure silk to breezy organza and the comfort of mashru —
+            shop your favourite weave in one tap.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {fabricCatalog.map((fabric) => (
+            <Link
+              key={fabric.name}
+              href={fabric.href}
+              className="group relative aspect-[3/4] overflow-hidden rounded-[1.25rem] border border-[#E5D5C4]"
+            >
+              <Image
+                src={fabric.image}
+                alt={`${fabric.name} sarees online`}
+                fill
+                sizes="(min-width: 1024px) 16vw, (min-width: 640px) 33vw, 50vw"
+                className="object-cover transition duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1D0B08]/85 via-[#1D0B08]/20 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-4">
+                <h3 className="font-[var(--font-playfair)] text-lg font-semibold text-white">
+                  {fabric.name}
+                </h3>
+                <p className="mt-1 text-[10px] leading-4 text-white/80">{fabric.tagline}</p>
+                <span className="mt-3 inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-[#E3B873]">
+                  Shop
+                  <ArrowUpRight className="h-3 w-3" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="overflow-hidden px-4 py-16 sm:px-6 lg:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -474,113 +523,7 @@ export default function Home() {
           )}
 
           {!topCollectionLoading && topCollectionProducts.length > 0 && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => scrollTopCollection(-1)}
-                className="absolute left-0 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2D2C1] bg-white/90 text-[#7D1111] shadow-[0_12px_28px_rgba(62,25,18,0.16)] backdrop-blur transition hover:bg-white sm:h-11 sm:w-11 lg:-left-5"
-                aria-label="Scroll top collection left"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-
-              <div
-                ref={topCollectionScrollerRef}
-                onScroll={(event) => updateTopCollectionCenter(event.currentTarget)}
-                className="-mx-4 overflow-x-auto scroll-smooth px-12 pb-6 sm:-mx-6 sm:px-16 lg:mx-0 lg:px-12"
-              >
-                <div className="flex w-max snap-x snap-mandatory items-end gap-5 sm:gap-6">
-                  {topCollectionProducts.map((product, index) => {
-                    const featured = activeTopCollectionIndex === index;
-                    const image = getProductImage(product);
-                    const discount =
-                      product.mrp && product.mrp > product.price
-                        ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
-                        : 0;
-
-                    return (
-                      <Link
-                        key={product.id}
-                        data-top-product-index={index}
-                        href={`/shop/${product.id}`}
-                        className="group relative flex w-[16.5rem] shrink-0 snap-center flex-col items-center text-center transition duration-300 sm:w-[18.5rem] lg:w-[19.5rem]"
-                      >
-                        <div
-                          className={`relative w-full overflow-visible transition-all duration-300 ${
-                            featured
-                              ? "h-[22rem] sm:h-[25rem] lg:h-[27rem]"
-                              : "h-[20.75rem] sm:h-[23.75rem] lg:h-[25.75rem]"
-                          }`}
-                        >
-                          <div className="absolute inset-x-4 bottom-5 h-14 rounded-full bg-[#2D1712]/18 blur-2xl" />
-                          <Image
-                            src={image}
-                            alt={`${product.name}${product.fabric ? ` — ${product.fabric} saree` : ""}, buy online at Luxe&Glow`}
-                            fill
-                            sizes="(min-width: 1024px) 19.5rem, 18.5rem"
-                            className={`object-contain drop-shadow-[0_22px_32px_rgba(45,23,18,0.24)] transition duration-500 group-hover:-translate-y-1 ${
-                              featured ? "scale-[1.035]" : "scale-100"
-                            }`}
-                          />
-                          {discount > 0 && (
-                            <span className="absolute left-3 top-3 z-10 rounded-full bg-[#9B251C]/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_8px_18px_rgba(155,37,28,0.35)]">
-                              {discount}% off
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="-mt-3 w-full rounded-[1.25rem] border border-[#E2D2C1] bg-white/78 px-4 py-4 shadow-[0_18px_45px_rgba(62,25,18,0.08)] backdrop-blur">
-                          {product.fabric && (
-                            <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8A5A18]">
-                              {product.fabric}
-                            </p>
-                          )}
-                          <p className="line-clamp-2 min-h-[2.75rem] font-[var(--font-playfair)] text-xl font-semibold leading-tight text-[#3A1712]">
-                            {product.name}
-                          </p>
-                          <div className="mt-2 flex items-center justify-center gap-1">
-                            <div className="flex items-center text-[#E0A93E]">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                  key={star}
-                                  className={`h-3.5 w-3.5 ${
-                                    star <= Math.round(product.rating || 4)
-                                      ? "fill-current"
-                                      : "opacity-30"
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                            <span className="text-xs font-medium text-[#8A7561]">
-                              ({product.ratingCount || 0})
-                            </span>
-                          </div>
-                          <div className="mt-2 flex items-center justify-center gap-2">
-                            <p className="text-base font-bold text-[#7D1111]">
-                              {formatPrice(product.price)}
-                            </p>
-                            {product.mrp > product.price && (
-                              <p className="text-xs text-[#A9947F] line-through">
-                                {formatPrice(product.mrp)}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => scrollTopCollection(1)}
-                className="absolute right-0 top-[42%] z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2D2C1] bg-white/90 text-[#7D1111] shadow-[0_12px_28px_rgba(62,25,18,0.16)] backdrop-blur transition hover:bg-white sm:h-11 sm:w-11 lg:-right-5"
-                aria-label="Scroll top collection right"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
+            <TopCollectionCarousel products={topCollectionProducts} />
           )}
         </div>
       </section>
@@ -730,6 +673,8 @@ export default function Home() {
       >
         <MessageCircle className="h-7 w-7" />
       </Link>
+
+      <OfferPopup />
     </main>
   );
 }

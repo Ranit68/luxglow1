@@ -176,6 +176,21 @@ function formatPrice(value) {
   return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
 }
 
+function formatList(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join(", ");
+  }
+  return value || "";
+}
+
+function mergeOptions(base, extra) {
+  const merged = [...base];
+  extra.forEach((value) => {
+    if (!merged.includes(value)) merged.push(value);
+  });
+  return merged;
+}
+
 function normalizeCategory(value) {
   return String(value || "")
     .trim()
@@ -240,10 +255,20 @@ function matchesFilter(product, key, selected) {
 }
 
 export default function ShopPage() {
+  const searchParams = useSearchParams();
+  const viewKey =
+    searchParams.get("price") ||
+    searchParams.get("collection") ||
+    searchParams.get("fabric") ||
+    "shop";
+
+  return <ShopGrid key={viewKey} searchParams={searchParams} />;
+}
+
+function ShopGrid({ searchParams }) {
   const PRODUCTS_PER_PAGE = 12;
 
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { addToCart } = useCart();
   const { isSaved, toggleSavedProduct } = useSavedProducts();
@@ -252,6 +277,7 @@ export default function ShopPage() {
   const category = categoryParam || "All";
   const priceParam = searchParams.get("price");
   const collectionParam = searchParams.get("collection");
+  const fabricParam = searchParams.get("fabric");
 
   const priceView = priceViews[priceParam];
   const collectionView = collectionViews[collectionParam];
@@ -275,13 +301,76 @@ export default function ShopPage() {
   const [search, setSearch] = useState("");
   const [maxPrice, setMaxPrice] = useState(effectiveMax);
   const [minPrice, setMinPrice] = useState(effectiveMin);
+  const [minPriceText, setMinPriceText] = useState(String(effectiveMin));
+  const [maxPriceText, setMaxPriceText] = useState(String(effectiveMax));
+
+  const commitMinPrice = () => {
+    const parsed = Number(minPriceText);
+    if (minPriceText.trim() === "" || Number.isNaN(parsed) || parsed < MIN_PRICE) {
+      setMinPriceText(String(minPrice));
+      return;
+    }
+    const clamped = Math.min(parsed, maxPrice);
+    setMinPrice(clamped);
+    setMinPriceText(String(clamped));
+  };
+
+  const commitMaxPrice = () => {
+    const parsed = Number(maxPriceText);
+    if (maxPriceText.trim() === "" || Number.isNaN(parsed) || parsed > MAX_PRICE) {
+      setMaxPriceText(String(maxPrice));
+      return;
+    }
+    const clamped = Math.max(parsed, minPrice);
+    setMaxPrice(clamped);
+    setMaxPriceText(String(clamped));
+  };
   const [sort, setSort] = useState("latest");
-  const [fabric, setFabric] = useState("");
+  const [fabric, setFabric] = useState(fabricParam || "");
   const [occasion, setOccasion] = useState("");
   const [blouseIncluded, setBlouseIncluded] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalMatches, setTotalMatches] = useState(0);
   const [authPrompt, setAuthPrompt] = useState(null);
+  const [fabricOptions, setFabricOptions] = useState(fabrics);
+  const [occasionOptions, setOccasionOptions] = useState(occasions);
+
+  useEffect(() => {
+    const unsubscribeFabrics = onSnapshot(
+      query(collection(db, "fabrics")),
+      (snapshot) => {
+        const extra = snapshot.docs
+          .map((doc) => doc.data()?.name)
+          .filter(Boolean)
+          .map((value) => String(value).trim())
+          .filter(Boolean);
+        setFabricOptions(mergeOptions(fabrics, extra));
+      },
+      () => {
+        setFabricOptions(fabrics);
+      }
+    );
+
+    const unsubscribeOccasions = onSnapshot(
+      query(collection(db, "occasions")),
+      (snapshot) => {
+        const extra = snapshot.docs
+          .map((doc) => doc.data()?.name)
+          .filter(Boolean)
+          .map((value) => String(value).trim())
+          .filter(Boolean);
+        setOccasionOptions(mergeOptions(occasions, extra));
+      },
+      () => {
+        setOccasionOptions(occasions);
+      }
+    );
+
+    return () => {
+      unsubscribeFabrics();
+      unsubscribeOccasions();
+    };
+  }, []);
 
   useEffect(() => {
     const baseTitle = activeCategoryInfo.title;
@@ -301,7 +390,6 @@ export default function ShopPage() {
         return;
       }
 
-      setLoading(true);
       let data = snapshot.docs.map((item) => ({
         id: item.id,
         ...item.data(),
@@ -577,7 +665,7 @@ export default function ShopPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-20 sm:px-6 sm:pb-24 lg:grid-cols-[240px_1fr] lg:gap-10">
+      <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-20 sm:px-6 sm:pb-24 lg:grid-cols-[320px_1fr] lg:gap-10">
         {/* Filters: show on top (full width) for small screens, as a left sidebar on large screens */}
         <aside className="order-1 w-full rounded-[1.5rem] border border-[#D8CABB] bg-white/80 p-5 text-xs shadow-sm mb-6 lg:mb-0 lg:order-1 lg:w-auto lg:sticky lg:top-24 lg:h-fit lg:space-y-8">
           <div className="flex items-center justify-between border-b border-[#D8CABB] pb-3">
@@ -620,7 +708,7 @@ export default function ShopPage() {
           <div className="border-t border-[#D8CABB] pt-6">
             <p className="mb-4 font-semibold uppercase tracking-[0.2em] text-[#24110D]">Fabric</p>
             <div className="flex flex-wrap gap-2">
-              {fabrics.map((item) => (
+              {fabricOptions.map((item) => (
                 <button
                   key={item}
                   type="button"
@@ -640,7 +728,7 @@ export default function ShopPage() {
           <div className="border-t border-[#D8CABB] pt-6">
             <p className="mb-4 font-semibold uppercase tracking-[0.2em] text-[#24110D]">Occasion</p>
             <div className="flex flex-wrap gap-2">
-              {occasions.map((item) => (
+              {occasionOptions.map((item) => (
                 <button
                   key={item}
                   type="button"
@@ -674,18 +762,92 @@ export default function ShopPage() {
           <div className="border-t border-[#D8CABB] pt-6">
             <div className="mb-4 flex items-center justify-between gap-4">
               <p className="font-semibold uppercase tracking-[0.2em] text-[#24110D]">Price range</p>
-              <span className="text-[10px] text-[#7D1111]">{formatPrice(maxPrice)}</span>
+              <span className="text-[10px] text-[#7D1111]">
+                {formatPrice(minPrice)} – {formatPrice(maxPrice)}
+              </span>
             </div>
-            <input
-              type="range"
-              min={MIN_PRICE}
-              max={MAX_PRICE}
-              step="1000"
-              value={maxPrice}
-              onChange={(event) => setMaxPrice(Number(event.target.value))}
-              className="w-full accent-[#7D1111]"
-              aria-label="Maximum price"
-            />
+
+            <div className="mb-2 flex items-center gap-3">
+              <span className="w-14 text-[10px] text-[#6F6258]">Min</span>
+              <input
+                type="range"
+                min={MIN_PRICE}
+                max={MAX_PRICE}
+                step={100}
+                value={minPrice}
+                onChange={(event) => {
+                  const clamped = Math.min(Number(event.target.value), maxPrice);
+                  setMinPrice(clamped);
+                  setMinPriceText(String(clamped));
+                }}
+                className="w-full accent-[#7D1111]"
+                aria-label="Minimum price"
+              />
+            </div>
+            <div className="mb-4 flex items-center gap-3">
+              <span className="w-14 text-[10px] text-[#6F6258]">Max</span>
+              <input
+                type="range"
+                min={MIN_PRICE}
+                max={MAX_PRICE}
+                step={100}
+                value={maxPrice}
+                onChange={(event) => {
+                  const clamped = Math.max(Number(event.target.value), minPrice);
+                  setMaxPrice(clamped);
+                  setMaxPriceText(String(clamped));
+                }}
+                className="w-full accent-[#7D1111]"
+                aria-label="Maximum price"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-[#D8CABB] px-3 py-2.5">
+                <span className="shrink-0 text-[10px] text-[#6F6258]">Min ₹</span>
+                <input
+                  type="number"
+                  min={MIN_PRICE}
+                  max={MAX_PRICE}
+                  step={100}
+                  value={minPriceText}
+                  onFocus={(event) => event.target.select()}
+                  onChange={(event) => setMinPriceText(event.target.value)}
+                  onBlur={commitMinPrice}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      commitMinPrice();
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="w-full min-w-0 flex-1 bg-transparent text-sm font-medium tabular-nums text-[#24110D] outline-none"
+                  aria-label="Manual minimum price"
+                />
+              </label>
+              <span className="shrink-0 text-[10px] text-[#6F6258]">to</span>
+              <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-[#D8CABB] px-3 py-2.5">
+                <span className="shrink-0 text-[10px] text-[#6F6258]">Max ₹</span>
+                <input
+                  type="number"
+                  min={MIN_PRICE}
+                  max={MAX_PRICE}
+                  step={100}
+                  value={maxPriceText}
+                  onFocus={(event) => event.target.select()}
+                  onChange={(event) => setMaxPriceText(event.target.value)}
+                  onBlur={commitMaxPrice}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      commitMaxPrice();
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="w-full min-w-0 flex-1 bg-transparent text-sm font-medium tabular-nums text-[#24110D] outline-none"
+                  aria-label="Manual maximum price"
+                />
+              </label>
+            </div>
+
             <div className="mt-4 flex justify-between text-[10px] text-[#6F6258]">
               <span>{formatPrice(MIN_PRICE)}</span>
               <span>{formatPrice(MAX_PRICE)}+</span>
@@ -753,7 +915,7 @@ export default function ShopPage() {
 
                       <Image
                         src={product.imageUrl}
-                        alt={`${product.name}${product.fabric ? ` — ${product.fabric} saree` : ""}${product.color ? ` in ${product.color}` : ""}, buy online at Luxe&Glow`}
+                        alt={`${product.name}${formatList(product.fabric) ? ` — ${formatList(product.fabric)} saree` : ""}${product.color ? ` in ${product.color}` : ""}, buy online at Luxe&Glow`}
                         fill
                         sizes="(min-width: 1024px) 25vw, 50vw"
                         className={`object-cover transition duration-700 group-hover:scale-105 ${
@@ -803,7 +965,7 @@ export default function ShopPage() {
 
                     <Link href={`/shop/${product.id}`} className="block pt-4 text-left flex-1">
                       <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#8A7667]">
-                        {product.fabric || "Luxe&Glow"}
+                        {formatList(product.fabric) || "Luxe&Glow"}
                       </p>
                       <h2 className="mt-1 line-clamp-2 font-[var(--font-editorial)] text-lg font-semibold leading-tight text-[#24110D]">
                         {product.name}
