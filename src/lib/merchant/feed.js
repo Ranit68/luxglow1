@@ -123,7 +123,10 @@ export function buildMerchantFeed(products = []) {
     seen.add(offerId);
     included += 1;
 
-    const additionalImageLink = images.slice(1).join("\t");
+    // Keep a single alternate image so every row matches the header columns
+    // exactly. Multiple tab-separated URLs in one cell would render as extra
+    // "image 1 / image 2" columns in feed viewers.
+    const additionalImageLink = images.slice(1, 2).join("\t");
 
     lines.push(
       [
