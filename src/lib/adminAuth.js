@@ -28,6 +28,7 @@ export async function requireAdminToken(req) {
 
     return { uid: decoded.uid, email: decoded.email || null };
   } catch (e) {
-    return { error: { status: 401, message: "Invalid admin token." } };
+    const detail = e?.code || e?.message || String(e);
+    return { error: { status: 401, message: `Invalid admin token: ${detail}` } };
   }
 }
