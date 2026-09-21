@@ -1,4 +1,3 @@
-import { getAuth } from "firebase-admin/auth";
 import { getApp } from "firebase-admin/app";
 import { getAdminDb } from "@/lib/firebaseAdmin";
 
@@ -14,6 +13,7 @@ export async function requireAdminToken(req) {
   }
 
   try {
+    const { getAuth } = await import("firebase-admin/auth");
     const decoded = await getAuth(getApp()).verifyIdToken(token);
 
     const db = getAdminDb();
